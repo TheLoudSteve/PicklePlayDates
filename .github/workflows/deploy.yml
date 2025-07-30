@@ -1,0 +1,133 @@
+name: Deploy Pickle Play Dates
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build services
+        run: |
+          cd services
+          npm run build
+
+      - name: Build infrastructure
+        run: |
+          cd infra
+          npm run build
+
+  deploy-dev:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment: development
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Build Lambda functions
+        run: |
+          cd services
+          npm run build
+
+      - name: Deploy infrastructure
+        run: |
+          cd infra
+          npm run deploy:dev
+
+      - name: Build and deploy frontend
+        run: |
+          cd web
+          # Set environment variables from CDK outputs
+          export NEXT_PUBLIC_API_URL="${{ secrets.API_URL }}"
+          export NEXT_PUBLIC_USER_POOL_ID="${{ secrets.USER_POOL_ID }}"
+          export NEXT_PUBLIC_USER_POOL_CLIENT_ID="${{ secrets.USER_POOL_CLIENT_ID }}"
+          export NEXT_PUBLIC_USER_POOL_DOMAIN="${{ secrets.USER_POOL_DOMAIN }}"
+          npm run build
+          # Upload to S3 bucket (would need to extract bucket name from CDK outputs)
+          aws s3 sync out/ s3://${{ secrets.S3_BUCKET_NAME }} --delete
+
+  deploy-prod:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[deploy:prod]')
+    environment: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Build Lambda functions
+        run: |
+          cd services
+          npm run build
+
+      - name: Deploy infrastructure
+        run: |
+          cd infra
+          npm run deploy:prod
+
+      - name: Build and deploy frontend
+        run: |
+          cd web
+          # Set environment variables from CDK outputs
+          export NEXT_PUBLIC_API_URL="${{ secrets.API_URL_PROD }}"
+          export NEXT_PUBLIC_USER_POOL_ID="${{ secrets.USER_POOL_ID_PROD }}"
+          export NEXT_PUBLIC_USER_POOL_CLIENT_ID="${{ secrets.USER_POOL_CLIENT_ID_PROD }}"
+          export NEXT_PUBLIC_USER_POOL_DOMAIN="${{ secrets.USER_POOL_DOMAIN_PROD }}"
+          npm run build
+          # Upload to S3 bucket (would need to extract bucket name from CDK outputs)
+          aws s3 sync out/ s3://${{ secrets.S3_BUCKET_NAME_PROD }} --delete 

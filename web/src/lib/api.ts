@@ -1,0 +1,140 @@
+'use client'
+
+import { fetchAuthSession } from 'aws-amplify/auth'
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL!
+
+export interface Game {
+  gameId: string
+  organizerId: string
+  datetimeUTC: string
+  locationId: string
+  minPlayers: number
+  maxPlayers: number
+  currentPlayers: number
+  status: 'scheduled' | 'closed' | 'cancelled' | 'past'
+  createdAt: string
+  updatedAt: string
+  players?: Player[]
+}
+
+export interface Player {
+  userId: string
+  userName: string
+  joinedAt: string
+  dupr?: string
+}
+
+export interface UserProfile {
+  userId: string
+  email: string
+  name: string
+  phone?: string
+  dupr?: '3.0' | '3.5' | '4.0+'
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateGameRequest {
+  datetimeUTC: string
+  locationId: string
+  minPlayers?: number
+  maxPlayers?: number
+}
+
+export interface UpdateUserProfileRequest {
+  name?: string
+  phone?: string
+  dupr?: '3.0' | '3.5' | '4.0+'
+}
+
+class ApiClient {
+  private async getAuthToken(): Promise<string | null> {
+    try {
+      const session = await fetchAuthSession()
+      return session.tokens?.idToken?.toString() || null
+    } catch (error) {
+      console.error('Error getting auth token:', error)
+      return null
+    }
+  }
+
+  private async request<T>(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<T> {
+    const token = await this.getAuthToken()
+    
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    }
+
+    if (token) {
+      headers.Authorization = `Bearer ${token}`
+    }
+
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      headers,
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(errorData.message || `HTTP ${response.status}`)
+    }
+
+    const data = await response.json()
+    return data.data
+  }
+
+  // Game endpoints
+  async createGame(game: CreateGameRequest): Promise<Game> {
+    return this.request<Game>('/games', {
+      method: 'POST',
+      body: JSON.stringify(game),
+    })
+  }
+
+  async getGame(gameId: string): Promise<Game> {
+    return this.request<Game>(`/games/${gameId}`)
+  }
+
+  async joinGame(gameId: string): Promise<void> {
+    return this.request<void>(`/games/${gameId}/join`, {
+      method: 'POST',
+    })
+  }
+
+  async leaveGame(gameId: string): Promise<void> {
+    return this.request<void>(`/games/${gameId}/leave`, {
+      method: 'POST',
+    })
+  }
+
+  async cancelGame(gameId: string): Promise<void> {
+    return this.request<void>(`/games/${gameId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async kickPlayer(gameId: string, userId: string): Promise<void> {
+    return this.request<void>(`/games/${gameId}/players/${userId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  // User endpoints
+  async getUserSchedule(range: 'upcoming' | 'past'): Promise<{ games: Game[], count: number }> {
+    return this.request<{ games: Game[], count: number }>(`/users/me/schedule?range=${range}`)
+  }
+
+  async updateUserProfile(profile: UpdateUserProfileRequest): Promise<UserProfile> {
+    return this.request<UserProfile>('/users/me', {
+      method: 'PUT',
+      body: JSON.stringify(profile),
+    })
+  }
+}
+
+export const apiClient = new ApiClient() 

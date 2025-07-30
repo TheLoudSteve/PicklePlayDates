@@ -1,0 +1,25 @@
+{
+  "name": "pickle-play-dates",
+  "version": "1.0.0",
+  "description": "A serverless pickleball game scheduling app",
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces",
+    "lint": "npm run lint --workspaces",
+    "deploy:dev": "cd infra && npm run deploy:dev",
+    "deploy:prod": "cd infra && npm run deploy:prod",
+    "bootstrap": "cd infra && npm run bootstrap"
+  },
+  "workspaces": [
+    "infra",
+    "web",
+    "services"
+  ],
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+} 
