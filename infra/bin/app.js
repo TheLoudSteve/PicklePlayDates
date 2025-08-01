@@ -1,0 +1,16 @@
+#!/usr/bin/env node
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+require("source-map-support/register");
+const dotenv = require("dotenv");
+const cdk = require("aws-cdk-lib");
+const pickle_play_dates_stack_1 = require("../lib/pickle-play-dates-stack");
+// Load environment variables from .env file
+dotenv.config();
+const app = new cdk.App();
+const env = app.node.tryGetContext('env') || 'dev';
+new pickle_play_dates_stack_1.PicklePlayDatesStack(app, `PicklePlayDates-${env}`, {
+    environment: env,
+});
+app.synth();
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYXBwLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYXBwLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7OztBQUNBLHVDQUFxQztBQUNyQyxpQ0FBaUM7QUFDakMsbUNBQW1DO0FBQ25DLDRFQUFzRTtBQUV0RSw0Q0FBNEM7QUFDNUMsTUFBTSxDQUFDLE1BQU0sRUFBRSxDQUFDO0FBRWhCLE1BQU0sR0FBRyxHQUFHLElBQUksR0FBRyxDQUFDLEdBQUcsRUFBRSxDQUFDO0FBRTFCLE1BQU0sR0FBRyxHQUFHLEdBQUcsQ0FBQyxJQUFJLENBQUMsYUFBYSxDQUFDLEtBQUssQ0FBQyxJQUFJLEtBQUssQ0FBQztBQUVuRCxJQUFJLDhDQUFvQixDQUFDLEdBQUcsRUFBRSxtQkFBbUIsR0FBRyxFQUFFLEVBQUU7SUFDdEQsV0FBVyxFQUFFLEdBQUc7Q0FDakIsQ0FBQyxDQUFDO0FBRUgsR0FBRyxDQUFDLEtBQUssRUFBRSxDQUFDIiwic291cmNlc0NvbnRlbnQiOlsiIyEvdXNyL2Jpbi9lbnYgbm9kZVxuaW1wb3J0ICdzb3VyY2UtbWFwLXN1cHBvcnQvcmVnaXN0ZXInO1xuaW1wb3J0ICogYXMgZG90ZW52IGZyb20gJ2RvdGVudic7XG5pbXBvcnQgKiBhcyBjZGsgZnJvbSAnYXdzLWNkay1saWInO1xuaW1wb3J0IHsgUGlja2xlUGxheURhdGVzU3RhY2sgfSBmcm9tICcuLi9saWIvcGlja2xlLXBsYXktZGF0ZXMtc3RhY2snO1xuXG4vLyBMb2FkIGVudmlyb25tZW50IHZhcmlhYmxlcyBmcm9tIC5lbnYgZmlsZVxuZG90ZW52LmNvbmZpZygpO1xuXG5jb25zdCBhcHAgPSBuZXcgY2RrLkFwcCgpO1xuXG5jb25zdCBlbnYgPSBhcHAubm9kZS50cnlHZXRDb250ZXh0KCdlbnYnKSB8fCAnZGV2JztcblxubmV3IFBpY2tsZVBsYXlEYXRlc1N0YWNrKGFwcCwgYFBpY2tsZVBsYXlEYXRlcy0ke2Vudn1gLCB7XG4gIGVudmlyb25tZW50OiBlbnYsXG59KTtcblxuYXBwLnN5bnRoKCk7ICJdfQ==

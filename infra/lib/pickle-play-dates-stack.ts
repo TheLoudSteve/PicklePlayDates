@@ -12,6 +12,7 @@ import * as budgets from 'aws-cdk-lib/aws-budgets';
 import * as ses from 'aws-cdk-lib/aws-ses';
 import * as sns from 'aws-cdk-lib/aws-sns';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
+import { DynamoEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
 import { Construct } from 'constructs';
 
 export interface PicklePlayDatesStackProps extends cdk.StackProps {
@@ -58,11 +59,9 @@ export class PicklePlayDatesStack extends cdk.Stack {
     });
 
     // Origin Access Control for CloudFront
-    const originAccessControl = new cloudfront.OriginAccessControl(this, 'OAC', {
+    const originAccessControl = new cloudfront.S3OriginAccessControl(this, 'OAC', {
       originAccessControlName: `pickle-play-dates-oac-${environment}`,
       description: 'OAC for Pickle Play Dates website',
-      originAccessControlOriginType: cloudfront.OriginAccessControlOriginType.S3,
-      signing: cloudfront.Signing.SIGV4_ALWAYS,
     });
 
     // CloudFront Distribution
@@ -155,7 +154,6 @@ export class PicklePlayDatesStack extends cdk.Stack {
       supportedIdentityProviders: [
         cognito.UserPoolClientIdentityProvider.COGNITO,
         cognito.UserPoolClientIdentityProvider.GOOGLE,
-        cognito.UserPoolClientIdentityProvider.custom('SignInWithApple'),
       ],
     });
 
@@ -167,33 +165,32 @@ export class PicklePlayDatesStack extends cdk.Stack {
       },
     });
 
-    // Google Identity Provider (requires manual setup in console)
-    new cognito.UserPoolIdentityProviderGoogle(this, 'GoogleProvider', {
-      userPool,
-      clientId: 'GOOGLE_CLIENT_ID_PLACEHOLDER', // Replace with actual Google Client ID
-      clientSecret: 'GOOGLE_CLIENT_SECRET_PLACEHOLDER', // Replace with actual secret
-      scopes: ['email', 'profile'],
-      attributeMapping: {
-        email: cognito.ProviderAttribute.GOOGLE_EMAIL,
-        givenName: cognito.ProviderAttribute.GOOGLE_GIVEN_NAME,
-        familyName: cognito.ProviderAttribute.GOOGLE_FAMILY_NAME,
-      },
-    });
+    // Google Identity Provider (only created if environment variables are provided)
+    const googleClientId = process.env.GOOGLE_CLIENT_ID;
+    const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    
+    if (googleClientId && googleClientSecret) {
+      new cognito.UserPoolIdentityProviderGoogle(this, 'GoogleProvider', {
+        userPool,
+        clientId: googleClientId,
+        clientSecret: googleClientSecret,
+        scopes: ['email', 'profile'],
+        attributeMapping: {
+          email: cognito.ProviderAttribute.GOOGLE_EMAIL,
+          givenName: cognito.ProviderAttribute.GOOGLE_GIVEN_NAME,
+          familyName: cognito.ProviderAttribute.GOOGLE_FAMILY_NAME,
+        },
+      });
+    } else {
+      console.log('🔐 Google OAuth credentials not found in environment variables. Skipping Google provider.');
+    }
 
-    // Apple Identity Provider (requires manual setup in console)
-    new cognito.UserPoolIdentityProviderApple(this, 'AppleProvider', {
-      userPool,
-      clientId: 'APPLE_CLIENT_ID_PLACEHOLDER', // Replace with actual Apple Client ID
-      teamId: 'APPLE_TEAM_ID_PLACEHOLDER', // Replace with actual team ID
-      keyId: 'APPLE_KEY_ID_PLACEHOLDER', // Replace with actual key ID
-      privateKey: 'APPLE_PRIVATE_KEY_PLACEHOLDER', // Replace with actual private key
-      scopes: ['email', 'name'],
-      attributeMapping: {
-        email: cognito.ProviderAttribute.APPLE_EMAIL,
-        givenName: cognito.ProviderAttribute.APPLE_FIRST_NAME,
-        familyName: cognito.ProviderAttribute.APPLE_LAST_NAME,
-      },
-    });
+    // Apple Identity Provider - Temporarily removed
+    // To add Apple Sign-In later:
+    // 1. Follow the setup guide in OAUTH_SETUP.md
+    // 2. Add Apple credentials to .env
+    // 3. Uncomment the Apple provider code
+    console.log('🍎 Apple Sign-In is disabled. Enable it later by following OAUTH_SETUP.md');
 
     // SES Configuration
     const sesConfigurationSet = new ses.ConfigurationSet(this, 'SESConfigurationSet', {
@@ -349,6 +346,13 @@ export class PicklePlayDatesStack extends cdk.Stack {
       code: lambda.Code.fromAsset('../services/dist/update-user-profile'),
     });
 
+    // Initialize User Profile Lambda
+    const initializeUserProfileLambda = new lambda.Function(this, 'InitializeUserProfileFunction', {
+      ...lambdaProps,
+      functionName: `pickle-play-dates-initialize-user-profile-${environment}`,
+      code: lambda.Code.fromAsset('../services/dist/initialize-user-profile'),
+    });
+
     // Notification Lambda (for DynamoDB Streams)
     const notificationLambda = new lambda.Function(this, 'NotificationFunction', {
       ...lambdaProps,
@@ -358,7 +362,7 @@ export class PicklePlayDatesStack extends cdk.Stack {
 
     // DynamoDB Stream Event Source
     notificationLambda.addEventSource(
-      new lambda.DynamoEventSource(table, {
+      new DynamoEventSource(table, {
         startingPosition: lambda.StartingPosition.LATEST,
         batchSize: 10,
         maxBatchingWindow: cdk.Duration.seconds(5),
@@ -396,6 +400,11 @@ export class PicklePlayDatesStack extends cdk.Stack {
     const usersResource = api.root.addResource('users');
     const meResource = usersResource.addResource('me');
     meResource.addMethod('PUT', new apigateway.LambdaIntegration(updateUserProfileLambda), {
+      authorizer: cognitoAuthorizer,
+    });
+
+    const initializeResource = meResource.addResource('initialize');
+    initializeResource.addMethod('POST', new apigateway.LambdaIntegration(initializeUserProfileLambda), {
       authorizer: cognitoAuthorizer,
     });
 
@@ -450,7 +459,7 @@ export class PicklePlayDatesStack extends cdk.Stack {
       description: 'Cognito User Pool Client ID',
     });
 
-    new cdk.CfnOutput(this, 'UserPoolDomain', {
+    new cdk.CfnOutput(this, 'UserPoolDomainName', {
       value: userPoolDomain.domainName,
       description: 'Cognito User Pool Domain',
     });

@@ -1,5 +1,5 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { APIResponse, JWTPayload, AppError, ValidationError } from './types';
+import { JWTPayload, ValidationError } from './types';
 
 export function createResponse<T>(
   statusCode: number,
@@ -26,7 +26,7 @@ export function createResponse<T>(
 export function createErrorResponse(
   statusCode: number,
   message: string,
-  validationErrors?: ValidationError[]
+  validationErrors?: ValidationError[] | undefined
 ): APIGatewayProxyResult {
   return createResponse(statusCode, { validationErrors }, message);
 }
@@ -102,12 +102,12 @@ export function generateGameId(): string {
 
 export class AppError extends Error {
   statusCode: number;
-  validationErrors?: ValidationError[];
+  validationErrors?: ValidationError[] | undefined;
 
   constructor(
     statusCode: number, 
     message: string, 
-    validationErrors?: ValidationError[]
+    validationErrors?: ValidationError[] | undefined
   ) {
     super(message);
     this.statusCode = statusCode;

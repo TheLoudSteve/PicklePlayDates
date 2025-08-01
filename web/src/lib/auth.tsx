@@ -2,7 +2,8 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { Amplify } from 'aws-amplify'
-import { getCurrentUser, signIn, signOut, AuthUser } from 'aws-amplify/auth'
+import { getCurrentUser, signIn, signOut, signInWithRedirect, AuthUser } from 'aws-amplify/auth'
+import { apiClient } from './api'
 
 // Configure Amplify
 Amplify.configure({
@@ -31,7 +32,6 @@ interface AuthContextType {
   user: AuthUser | null
   isLoading: boolean
   signInWithGoogle: () => Promise<void>
-  signInWithApple: () => Promise<void>
   signOut: () => Promise<void>
 }
 
@@ -49,6 +49,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const currentUser = await getCurrentUser()
       setUser(currentUser)
+      
+      // Try to initialize user profile if it doesn't exist
+      try {
+        await apiClient.initializeUserProfile()
+      } catch (error) {
+        // Ignore errors - profile might already exist or API might not be ready
+        console.log('Profile initialization skipped:', error)
+      }
     } catch (error) {
       console.log('No authenticated user')
       setUser(null)
@@ -59,22 +67,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithGoogle = async () => {
     try {
-      await signIn({
+      await signInWithRedirect({
         provider: 'Google'
       })
     } catch (error) {
       console.error('Error signing in with Google:', error)
-      throw error
-    }
-  }
-
-  const signInWithApple = async () => {
-    try {
-      await signIn({
-        provider: 'SignInWithApple'
-      })
-    } catch (error) {
-      console.error('Error signing in with Apple:', error)
       throw error
     }
   }
@@ -93,7 +90,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user,
     isLoading,
     signInWithGoogle,
-    signInWithApple,
     signOut: handleSignOut
   }
 

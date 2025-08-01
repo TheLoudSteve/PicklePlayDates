@@ -6,7 +6,7 @@ import {
   UpdateCommand, 
   DeleteCommand, 
   QueryCommand, 
-  ScanCommand,
+
   TransactWriteCommand 
 } from '@aws-sdk/lib-dynamodb';
 import { Game, GamePlayer, UserProfile } from './types';
@@ -130,7 +130,7 @@ export async function getGamePlayers(gameId: string): Promise<GamePlayer[]> {
 }
 
 export async function addPlayerToGame(
-  gameId: string, 
+  _gameId: string, 
   player: GamePlayer
 ): Promise<void> {
   try {

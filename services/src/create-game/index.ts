@@ -6,7 +6,7 @@ import {
   getUserIdFromEvent,
   validateDateTime,
   handleError,
-  AppError,
+
   formatDateForDDB 
 } from '../shared/utils';
 import { putGame, getUserProfile } from '../shared/dynamodb';
@@ -89,15 +89,15 @@ export const handler = async (
     await putGame(game);
 
     // Add organizer as first player
-    const organizer = {
-      pk: `GAME#${gameId}`,
-      sk: `PLAYER#${userId}`,
-      gameId,
-      userId,
-      userName: userProfile.name,
-      joinedAt: now,
-      dupr: userProfile.dupr,
-    };
+//     // const organizer = {
+//       pk: `GAME#${gameId}`,
+//       sk: `PLAYER#${userId}`,
+//       gameId,
+//       userId,
+//       userName: userProfile.name,
+//       joinedAt: now,
+//       dupr: userProfile.dupr,
+//     };
 
     // Note: In real implementation, we'd use a transaction to ensure both operations succeed
     // For simplicity, we're doing separate operations here

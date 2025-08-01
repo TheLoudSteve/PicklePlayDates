@@ -5,7 +5,7 @@ import {
   getUserIdFromEvent,
   isGameJoinable,
   handleError,
-  AppError,
+
   formatDateForDDB 
 } from '../shared/utils';
 import { 
@@ -78,7 +78,7 @@ export const handler = async (
       userId,
       userName: userProfile.name,
       joinedAt: now,
-      dupr: userProfile.dupr,
+      ...(userProfile.dupr && { dupr: userProfile.dupr }),
     };
 
     await addPlayerToGame(gameId, newPlayer);

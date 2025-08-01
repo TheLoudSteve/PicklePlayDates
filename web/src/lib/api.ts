@@ -71,7 +71,7 @@ class ApiClient {
     }
 
     if (token) {
-      headers.Authorization = `Bearer ${token}`
+      (headers as any).Authorization = `Bearer ${token}`
     }
 
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -133,6 +133,12 @@ class ApiClient {
     return this.request<UserProfile>('/users/me', {
       method: 'PUT',
       body: JSON.stringify(profile),
+    })
+  }
+
+  async initializeUserProfile(): Promise<UserProfile> {
+    return this.request<UserProfile>('/users/me/initialize', {
+      method: 'POST',
     })
   }
 }

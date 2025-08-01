@@ -24,7 +24,7 @@ export interface GamePlayer {
   userId: string;
   userName: string;
   joinedAt: string;
-  dupr?: string;
+  dupr?: DUPRLevel;
 }
 
 export interface UserProfile {
@@ -43,7 +43,7 @@ export type GameStatus = 'scheduled' | 'closed' | 'cancelled' | 'past';
 
 export type DUPRLevel = '3.0' | '3.5' | '4.0+';
 
-export interface APIResponse<T = any> {
+export interface APIResponse {
   statusCode: number;
   headers: {
     'Content-Type': string;
@@ -81,7 +81,3 @@ export interface ValidationError {
   message: string;
 }
 
-export interface AppError extends Error {
-  statusCode?: number;
-  validationErrors?: ValidationError[];
-} 

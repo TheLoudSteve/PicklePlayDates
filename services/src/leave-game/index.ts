@@ -5,7 +5,7 @@ import {
   getUserIdFromEvent,
   isGameJoinable,
   handleError,
-  AppError,
+
   formatDateForDDB 
 } from '../shared/utils';
 import { 

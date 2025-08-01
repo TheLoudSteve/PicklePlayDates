@@ -1,15 +1,15 @@
 import { DynamoDBStreamEvent, DynamoDBRecord } from 'aws-lambda';
-import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
+// import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
 import { SNSClient, PublishCommand } from '@aws-sdk/client-sns';
 import { unmarshall } from '@aws-sdk/util-dynamodb';
 import { Game, GamePlayer } from '../shared/types';
 
-const sesClient = new SESClient({});
+// // const sesClient = new SESClient({});
 const snsClient = new SNSClient({});
 
-const SES_CONFIGURATION_SET = process.env.SES_CONFIGURATION_SET!;
+// const SES_CONFIGURATION_SET = process.env.SES_CONFIGURATION_SET!;
 const SNS_TOPIC_ARN = process.env.SNS_TOPIC_ARN!;
-const ENVIRONMENT = process.env.ENVIRONMENT!;
+// const ENVIRONMENT = process.env.ENVIRONMENT!;
 
 export const handler = async (event: DynamoDBStreamEvent): Promise<void> => {
   console.log('Processing DynamoDB stream events:', JSON.stringify(event, null, 2));
@@ -34,7 +34,7 @@ async function processRecord(record: DynamoDBRecord): Promise<void> {
 
   // Handle new player joining a game
   if (eventName === 'INSERT' && dynamodb.NewImage) {
-    const newItem = unmarshall(dynamodb.NewImage);
+    const newItem = unmarshall(dynamodb.NewImage as any);
     
     // Check if this is a player joining a game
     if (newItem.pk?.startsWith('GAME#') && newItem.sk?.startsWith('PLAYER#')) {
@@ -44,8 +44,8 @@ async function processRecord(record: DynamoDBRecord): Promise<void> {
 
   // Handle game status changes
   if (eventName === 'MODIFY' && dynamodb.NewImage && dynamodb.OldImage) {
-    const newItem = unmarshall(dynamodb.NewImage);
-    const oldItem = unmarshall(dynamodb.OldImage);
+    const newItem = unmarshall(dynamodb.NewImage as any);
+    const oldItem = unmarshall(dynamodb.OldImage as any);
     
     // Check if this is a game metadata update
     if (newItem.pk?.startsWith('GAME#') && newItem.sk === 'METADATA') {

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/lib/auth'
 import { apiClient, Game } from '@/lib/api'
+import { CreateGameModal } from './CreateGameModal'
 import { LoadingSpinner } from './LoadingSpinner'
 
 export function Dashboard() {
@@ -10,6 +11,7 @@ export function Dashboard() {
   const [games, setGames] = useState<Game[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming')
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
 
   useEffect(() => {
     loadGames()
@@ -133,7 +135,10 @@ export function Dashboard() {
             </p>
             {activeTab === 'upcoming' && (
               <div className="mt-6">
-                <button className="btn btn-primary">
+                <button 
+                  onClick={() => setIsCreateModalOpen(true)}
+                  className="btn btn-primary"
+                >
                   Create New Game
                 </button>
               </div>
@@ -173,6 +178,13 @@ export function Dashboard() {
           </div>
         )}
       </main>
+
+      {/* Create Game Modal */}
+      <CreateGameModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onGameCreated={loadGames}
+      />
     </div>
   )
 } 
