@@ -276,7 +276,7 @@ export class PicklePlayDatesStack extends cdk.Stack {
 
     // Lambda functions will be created in separate files
     const lambdaProps = {
-      runtime: lambda.Runtime.NODEJS_18_X,
+      runtime: lambda.Runtime.NODEJS_20_X,
       handler: 'index.handler',
       role: lambdaExecutionRole,
       environment: {
