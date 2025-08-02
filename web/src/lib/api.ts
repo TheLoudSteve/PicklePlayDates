@@ -52,9 +52,11 @@ class ApiClient {
   private async getAuthToken(): Promise<string | null> {
     try {
       const session = await fetchAuthSession()
-      return session.tokens?.idToken?.toString() || null
+      const token = session.tokens?.idToken?.toString() || null
+      console.log('🔐 Auth token retrieved:', token ? 'YES (length: ' + token.length + ')' : 'NO')
+      return token
     } catch (error) {
-      console.error('Error getting auth token:', error)
+      console.error('❌ Error getting auth token:', error)
       return null
     }
   }
@@ -74,13 +76,20 @@ class ApiClient {
       (headers as any).Authorization = `Bearer ${token}`
     }
 
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const url = `${API_BASE_URL}${endpoint}`
+    console.log('🌐 Making API request:', options.method || 'GET', url)
+    console.log('🔑 Auth header present:', !!token)
+
+    const response = await fetch(url, {
       ...options,
       headers,
     })
 
+    console.log('📡 API response:', response.status, response.statusText)
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
+      console.error('❌ API error:', response.status, errorData)
       throw new Error(errorData.message || `HTTP ${response.status}`)
     }
 

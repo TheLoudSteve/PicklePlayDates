@@ -255,9 +255,10 @@ export class PicklePlayDatesStack extends cdk.Stack {
       restApiName: `pickle-play-dates-api-${environment}`,
       description: 'API for Pickle Play Dates application',
       defaultCorsPreflightOptions: {
-        allowOrigins: apigateway.Cors.ALL_ORIGINS,
-        allowMethods: apigateway.Cors.ALL_METHODS,
-        allowHeaders: ['Content-Type', 'X-Amz-Date', 'Authorization', 'X-Api-Key'],
+        allowOrigins: ['https://d1w3xzob0r3y0f.cloudfront.net', 'http://localhost:3000'],
+        allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+        allowHeaders: ['Content-Type', 'X-Amz-Date', 'Authorization', 'X-Api-Key', 'X-Amz-Security-Token'],
+        allowCredentials: true,
       },
       deployOptions: {
         stageName: environment,
@@ -268,16 +269,57 @@ export class PicklePlayDatesStack extends cdk.Stack {
       },
     });
 
-    // Cognito Authorizer
+    // Cognito Authorizer  
     const cognitoAuthorizer = new apigateway.CognitoUserPoolsAuthorizer(this, 'CognitoAuthorizer', {
       cognitoUserPools: [userPool],
       authorizerName: 'CognitoAuthorizer',
+      resultsCacheTtl: cdk.Duration.seconds(0), // Disable caching to avoid CORS issues
+    });
+
+    // Add Gateway Responses for CORS on authorization failures
+    api.addGatewayResponse('unauthorized', {
+      type: apigateway.ResponseType.UNAUTHORIZED,
+      responseHeaders: {
+        'Access-Control-Allow-Origin': "'https://d1w3xzob0r3y0f.cloudfront.net'",
+        'Access-Control-Allow-Headers': "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'",
+        'Access-Control-Allow-Methods': "'GET,POST,PUT,DELETE,OPTIONS'",
+        'Access-Control-Allow-Credentials': "'true'",
+      },
+    });
+
+    api.addGatewayResponse('forbidden', {
+      type: apigateway.ResponseType.ACCESS_DENIED,
+      responseHeaders: {
+        'Access-Control-Allow-Origin': "'https://d1w3xzob0r3y0f.cloudfront.net'",
+        'Access-Control-Allow-Headers': "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'",
+        'Access-Control-Allow-Methods': "'GET,POST,PUT,DELETE,OPTIONS'",
+        'Access-Control-Allow-Credentials': "'true'",
+      },
+    });
+
+    api.addGatewayResponse('bad-request-body', {
+      type: apigateway.ResponseType.BAD_REQUEST_BODY,
+      responseHeaders: {
+        'Access-Control-Allow-Origin': "'https://d1w3xzob0r3y0f.cloudfront.net'",
+        'Access-Control-Allow-Headers': "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'",
+        'Access-Control-Allow-Methods': "'GET,POST,PUT,DELETE,OPTIONS'",
+        'Access-Control-Allow-Credentials': "'true'",
+      },
+    });
+
+    api.addGatewayResponse('default-5xx', {
+      type: apigateway.ResponseType.DEFAULT_5XX,
+      responseHeaders: {
+        'Access-Control-Allow-Origin': "'https://d1w3xzob0r3y0f.cloudfront.net'",
+        'Access-Control-Allow-Headers': "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'",
+        'Access-Control-Allow-Methods': "'GET,POST,PUT,DELETE,OPTIONS'",
+        'Access-Control-Allow-Credentials': "'true'",
+      },
     });
 
     // Lambda functions will be created in separate files
     const lambdaProps = {
       runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'index.handler',
       role: lambdaExecutionRole,
       environment: {
         TABLE_NAME: table.tableName,
@@ -294,70 +336,80 @@ export class PicklePlayDatesStack extends cdk.Stack {
     const createGameLambda = new lambda.Function(this, 'CreateGameFunction', {
       ...lambdaProps,
       functionName: `pickle-play-dates-create-game-${environment}`,
-      code: lambda.Code.fromAsset('../services/dist/create-game'),
+      code: lambda.Code.fromAsset('../services/dist'),
+      handler: 'create-game/index.handler',
     });
 
     // Get Game Lambda
     const getGameLambda = new lambda.Function(this, 'GetGameFunction', {
       ...lambdaProps,
       functionName: `pickle-play-dates-get-game-${environment}`,
-      code: lambda.Code.fromAsset('../services/dist/get-game'),
+      code: lambda.Code.fromAsset('../services/dist'),
+      handler: 'get-game/index.handler',
     });
 
     // Join Game Lambda
     const joinGameLambda = new lambda.Function(this, 'JoinGameFunction', {
       ...lambdaProps,
       functionName: `pickle-play-dates-join-game-${environment}`,
-      code: lambda.Code.fromAsset('../services/dist/join-game'),
+      code: lambda.Code.fromAsset('../services/dist'),
+      handler: 'join-game/index.handler',
     });
 
     // Leave Game Lambda
     const leaveGameLambda = new lambda.Function(this, 'LeaveGameFunction', {
       ...lambdaProps,
       functionName: `pickle-play-dates-leave-game-${environment}`,
-      code: lambda.Code.fromAsset('../services/dist/leave-game'),
+      code: lambda.Code.fromAsset('../services/dist'),
+      handler: 'leave-game/index.handler',
     });
 
     // Cancel Game Lambda
     const cancelGameLambda = new lambda.Function(this, 'CancelGameFunction', {
       ...lambdaProps,
       functionName: `pickle-play-dates-cancel-game-${environment}`,
-      code: lambda.Code.fromAsset('../services/dist/cancel-game'),
+      code: lambda.Code.fromAsset('../services/dist'),
+      handler: 'cancel-game/index.handler',
     });
 
     // Kick Player Lambda
     const kickPlayerLambda = new lambda.Function(this, 'KickPlayerFunction', {
       ...lambdaProps,
       functionName: `pickle-play-dates-kick-player-${environment}`,
-      code: lambda.Code.fromAsset('../services/dist/kick-player'),
+      code: lambda.Code.fromAsset('../services/dist'),
+      handler: 'kick-player/index.handler',
     });
 
     // Get User Schedule Lambda
     const getUserScheduleLambda = new lambda.Function(this, 'GetUserScheduleFunction', {
       ...lambdaProps,
       functionName: `pickle-play-dates-get-user-schedule-${environment}`,
-      code: lambda.Code.fromAsset('../services/dist/get-user-schedule'),
+      code: lambda.Code.fromAsset('../services/dist'),
+      handler: 'get-user-schedule/index.handler',
     });
 
     // Update User Profile Lambda
     const updateUserProfileLambda = new lambda.Function(this, 'UpdateUserProfileFunction', {
       ...lambdaProps,
       functionName: `pickle-play-dates-update-user-profile-${environment}`,
-      code: lambda.Code.fromAsset('../services/dist/update-user-profile'),
+      code: lambda.Code.fromAsset('../services/dist'),
+      handler: 'update-user-profile/index.handler',
     });
 
     // Initialize User Profile Lambda
     const initializeUserProfileLambda = new lambda.Function(this, 'InitializeUserProfileFunction', {
       ...lambdaProps,
       functionName: `pickle-play-dates-initialize-user-profile-${environment}`,
-      code: lambda.Code.fromAsset('../services/dist/initialize-user-profile'),
+      code: lambda.Code.fromAsset('../services/dist'),
+      handler: 'initialize-user-profile/index.handler',
     });
 
     // Notification Lambda (for DynamoDB Streams)
     const notificationLambda = new lambda.Function(this, 'NotificationFunction', {
       ...lambdaProps,
       functionName: `pickle-play-dates-notifications-${environment}`,
-      code: lambda.Code.fromAsset('../services/dist/notifications'),
+      code: lambda.Code.fromAsset('../services/dist'),
+      handler: 'notifications/index.handler',
     });
 
     // DynamoDB Stream Event Source
@@ -369,47 +421,54 @@ export class PicklePlayDatesStack extends cdk.Stack {
       })
     );
 
+    // Simple Lambda integration - let Lambda handle CORS headers
+    const createLambdaIntegration = (lambdaFunction: lambda.Function) => {
+      return new apigateway.LambdaIntegration(lambdaFunction, {
+        proxy: true,
+      });
+    };
+
     // API Gateway Routes
     const gamesResource = api.root.addResource('games');
-    gamesResource.addMethod('POST', new apigateway.LambdaIntegration(createGameLambda), {
+    gamesResource.addMethod('POST', createLambdaIntegration(createGameLambda), {
       authorizer: cognitoAuthorizer,
     });
 
     const gameResource = gamesResource.addResource('{gameId}');
-    gameResource.addMethod('GET', new apigateway.LambdaIntegration(getGameLambda));
-    gameResource.addMethod('DELETE', new apigateway.LambdaIntegration(cancelGameLambda), {
+    gameResource.addMethod('GET', createLambdaIntegration(getGameLambda));
+    gameResource.addMethod('DELETE', createLambdaIntegration(cancelGameLambda), {
       authorizer: cognitoAuthorizer,
     });
 
     const joinResource = gameResource.addResource('join');
-    joinResource.addMethod('POST', new apigateway.LambdaIntegration(joinGameLambda), {
+    joinResource.addMethod('POST', createLambdaIntegration(joinGameLambda), {
       authorizer: cognitoAuthorizer,
     });
 
     const leaveResource = gameResource.addResource('leave');
-    leaveResource.addMethod('POST', new apigateway.LambdaIntegration(leaveGameLambda), {
+    leaveResource.addMethod('POST', createLambdaIntegration(leaveGameLambda), {
       authorizer: cognitoAuthorizer,
     });
 
     const playersResource = gameResource.addResource('players');
     const playerResource = playersResource.addResource('{userId}');
-    playerResource.addMethod('DELETE', new apigateway.LambdaIntegration(kickPlayerLambda), {
+    playerResource.addMethod('DELETE', createLambdaIntegration(kickPlayerLambda), {
       authorizer: cognitoAuthorizer,
     });
 
     const usersResource = api.root.addResource('users');
     const meResource = usersResource.addResource('me');
-    meResource.addMethod('PUT', new apigateway.LambdaIntegration(updateUserProfileLambda), {
+    meResource.addMethod('PUT', createLambdaIntegration(updateUserProfileLambda), {
       authorizer: cognitoAuthorizer,
     });
 
     const initializeResource = meResource.addResource('initialize');
-    initializeResource.addMethod('POST', new apigateway.LambdaIntegration(initializeUserProfileLambda), {
+    initializeResource.addMethod('POST', createLambdaIntegration(initializeUserProfileLambda), {
       authorizer: cognitoAuthorizer,
     });
 
     const scheduleResource = meResource.addResource('schedule');
-    scheduleResource.addMethod('GET', new apigateway.LambdaIntegration(getUserScheduleLambda), {
+    scheduleResource.addMethod('GET', createLambdaIntegration(getUserScheduleLambda), {
       authorizer: cognitoAuthorizer,
     });
 

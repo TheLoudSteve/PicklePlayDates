@@ -33,6 +33,7 @@ interface AuthContextType {
   isLoading: boolean
   signInWithGoogle: () => Promise<void>
   signOut: () => Promise<void>
+  checkAuthState: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -53,9 +54,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Try to initialize user profile if it doesn't exist
       try {
         await apiClient.initializeUserProfile()
+        console.log('✅ Profile initialized successfully')
       } catch (error) {
         // Ignore errors - profile might already exist or API might not be ready
-        console.log('Profile initialization skipped:', error)
+        console.log('⚠️ Profile initialization skipped:', error)
       }
     } catch (error) {
       console.log('No authenticated user')
@@ -90,7 +92,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user,
     isLoading,
     signInWithGoogle,
-    signOut: handleSignOut
+    signOut: handleSignOut,
+    checkAuthState
   }
 
   return (

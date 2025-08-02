@@ -2,11 +2,16 @@
 
 import { useState } from 'react'
 import { useAuth } from '@/lib/auth'
+import { signUp, signIn, confirmSignUp } from 'aws-amplify/auth'
 
 export function LoginPage() {
-  const { signInWithGoogle } = useAuth()
+  const { signInWithGoogle, checkAuthState } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [mode, setMode] = useState<'signin' | 'signup' | 'confirm'>('signin')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirmationCode, setConfirmationCode] = useState('')
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true)
@@ -16,6 +21,67 @@ export function LoginPage() {
     } catch (error) {
       console.error('Sign in error:', error)
       setError('Google Sign-In is not yet configured. Please check back later or contact support.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleEmailSignUp = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+    setError(null)
+    try {
+      await signUp({
+        username: email,
+        password,
+        options: {
+          userAttributes: {
+            email
+          }
+        }
+      })
+      setMode('confirm')
+    } catch (error: any) {
+      setError(error.message || 'Failed to sign up')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleEmailSignIn = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+    setError(null)
+    try {
+      await signIn({
+        username: email,
+        password
+      })
+      await checkAuthState()
+    } catch (error: any) {
+      setError(error.message || 'Failed to sign in')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleConfirmSignUp = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+    setError(null)
+    try {
+      await confirmSignUp({
+        username: email,
+        confirmationCode
+      })
+      // Automatically sign in after confirmation
+      await signIn({
+        username: email,
+        password
+      })
+      await checkAuthState()
+    } catch (error: any) {
+      setError(error.message || 'Failed to confirm sign up')
     } finally {
       setIsLoading(false)
     }
