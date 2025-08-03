@@ -6,7 +6,7 @@ import {
   UpdateCommand, 
   DeleteCommand, 
   QueryCommand, 
-
+  ScanCommand,
   TransactWriteCommand 
 } from '@aws-sdk/lib-dynamodb';
 import { Game, GamePlayer, UserProfile } from './types';
@@ -219,6 +219,53 @@ export async function updateUserProfile(
     }));
   } catch (error) {
     console.error('Error updating user profile:', error);
+    throw error;
+  }
+}
+
+// Query all available games (for "Upcoming Games" tab)
+export async function getAllAvailableGames(): Promise<Game[]> {
+  try {
+    const now = new Date().toISOString();
+    
+    const result = await ddb.send(new ScanCommand({
+      TableName: TABLE_NAME,
+      FilterExpression: 'begins_with(pk, :gamePrefix) AND sk = :metadata AND datetimeUTC > :now AND #status = :scheduled',
+      ExpressionAttributeNames: {
+        '#status': 'status'
+      },
+      ExpressionAttributeValues: {
+        ':gamePrefix': 'GAME#',
+        ':metadata': 'METADATA',
+        ':now': now,
+        ':scheduled': 'scheduled'
+      }
+    }));
+    
+    // Sort by datetime (earliest first)
+    const games = (result.Items as Game[] || []).sort((a, b) => 
+      new Date(a.datetimeUTC).getTime() - new Date(b.datetimeUTC).getTime()
+    );
+
+    // Fetch players for each game
+    const gamesWithPlayers = await Promise.all(
+      games.map(async (game) => {
+        const players = await getGamePlayers(game.gameId);
+        return {
+          ...game,
+          players: players.map(player => ({
+            userId: player.userId,
+            userName: player.userName,
+            joinedAt: player.joinedAt,
+            dupr: player.dupr
+          }))
+        };
+      })
+    );
+    
+    return gamesWithPlayers;
+  } catch (error) {
+    console.error('Error getting all available games:', error);
     throw error;
   }
 }

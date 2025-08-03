@@ -30,7 +30,7 @@ export interface UserProfile {
   email: string
   name: string
   phone?: string
-  dupr?: '3.0' | '3.5' | '4.0+'
+  dupr?: 'Below 3' | '3 to 3.5' | '3.5 to 4' | '4 to 4.5' | 'Above 4.5'
   createdAt: string
   updatedAt: string
 }
@@ -45,7 +45,7 @@ export interface CreateGameRequest {
 export interface UpdateUserProfileRequest {
   name?: string
   phone?: string
-  dupr?: '3.0' | '3.5' | '4.0+'
+  dupr?: 'Below 3' | '3 to 3.5' | '3.5 to 4' | '4 to 4.5' | 'Above 4.5'
 }
 
 class ApiClient {
@@ -121,6 +121,13 @@ class ApiClient {
     })
   }
 
+  async updateGame(gameId: string, updates: Partial<CreateGameRequest>): Promise<Game> {
+    return this.request<Game>(`/games/${gameId}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    })
+  }
+
   async cancelGame(gameId: string): Promise<void> {
     return this.request<void>(`/games/${gameId}`, {
       method: 'DELETE',
@@ -133,9 +140,18 @@ class ApiClient {
     })
   }
 
-  // User endpoints
+  // Game listing endpoints
+  async getAvailableGames(): Promise<{ games: Game[], count: number }> {
+    return this.request<{ games: Game[], count: number }>(`/games`)
+  }
+
+  // User endpoints  
   async getUserSchedule(range: 'upcoming' | 'past'): Promise<{ games: Game[], count: number }> {
     return this.request<{ games: Game[], count: number }>(`/users/me/schedule?range=${range}`)
+  }
+
+  async getCurrentUserProfile(): Promise<UserProfile> {
+    return this.request<UserProfile>('/users/me')
   }
 
   async updateUserProfile(profile: UpdateUserProfileRequest): Promise<UserProfile> {

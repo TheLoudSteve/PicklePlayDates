@@ -10,7 +10,7 @@ import {
 import { getUserProfile, updateUserProfile } from '../shared/dynamodb';
 import { UpdateUserProfileRequest, ValidationError, DUPRLevel } from '../shared/types';
 
-const validDUPRLevels: DUPRLevel[] = ['3.0', '3.5', '4.0+'];
+const validDUPRLevels: DUPRLevel[] = ['Below 3', '3 to 3.5', '3.5 to 4', '4 to 4.5', 'Above 4.5'];
 
 export const handler = async (
   event: APIGatewayProxyEvent

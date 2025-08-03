@@ -41,7 +41,7 @@ export interface UserProfile {
 
 export type GameStatus = 'scheduled' | 'closed' | 'cancelled' | 'past';
 
-export type DUPRLevel = '3.0' | '3.5' | '4.0+';
+export type DUPRLevel = 'Below 3' | '3 to 3.5' | '3.5 to 4' | '4 to 4.5' | 'Above 4.5';
 
 export interface APIResponse {
   statusCode: number;

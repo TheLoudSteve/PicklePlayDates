@@ -348,6 +348,14 @@ export class PicklePlayDatesStack extends cdk.Stack {
       handler: 'get-game/index.handler',
     });
 
+    // Get Available Games Lambda
+    const getAvailableGamesLambda = new lambda.Function(this, 'GetAvailableGamesFunction', {
+      ...lambdaProps,
+      functionName: `pickle-play-dates-get-available-games-${environment}`,
+      code: lambda.Code.fromAsset('../services/dist'),
+      handler: 'get-available-games/index.handler',
+    });
+
     // Join Game Lambda
     const joinGameLambda = new lambda.Function(this, 'JoinGameFunction', {
       ...lambdaProps,
@@ -362,6 +370,14 @@ export class PicklePlayDatesStack extends cdk.Stack {
       functionName: `pickle-play-dates-leave-game-${environment}`,
       code: lambda.Code.fromAsset('../services/dist'),
       handler: 'leave-game/index.handler',
+    });
+
+    // Update Game Lambda
+    const updateGameLambda = new lambda.Function(this, 'UpdateGameFunction', {
+      ...lambdaProps,
+      functionName: `pickle-play-dates-update-game-${environment}`,
+      code: lambda.Code.fromAsset('../services/dist'),
+      handler: 'update-game/index.handler',
     });
 
     // Cancel Game Lambda
@@ -386,6 +402,14 @@ export class PicklePlayDatesStack extends cdk.Stack {
       functionName: `pickle-play-dates-get-user-schedule-${environment}`,
       code: lambda.Code.fromAsset('../services/dist'),
       handler: 'get-user-schedule/index.handler',
+    });
+
+    // Get User Profile Lambda
+    const getUserProfileLambda = new lambda.Function(this, 'GetUserProfileFunction', {
+      ...lambdaProps,
+      functionName: `pickle-play-dates-get-user-profile-${environment}`,
+      code: lambda.Code.fromAsset('../services/dist'),
+      handler: 'get-user-profile/index.handler',
     });
 
     // Update User Profile Lambda
@@ -430,12 +454,18 @@ export class PicklePlayDatesStack extends cdk.Stack {
 
     // API Gateway Routes
     const gamesResource = api.root.addResource('games');
+    gamesResource.addMethod('GET', createLambdaIntegration(getAvailableGamesLambda), {
+      authorizer: cognitoAuthorizer,
+    });
     gamesResource.addMethod('POST', createLambdaIntegration(createGameLambda), {
       authorizer: cognitoAuthorizer,
     });
 
     const gameResource = gamesResource.addResource('{gameId}');
     gameResource.addMethod('GET', createLambdaIntegration(getGameLambda));
+    gameResource.addMethod('PUT', createLambdaIntegration(updateGameLambda), {
+      authorizer: cognitoAuthorizer,
+    });
     gameResource.addMethod('DELETE', createLambdaIntegration(cancelGameLambda), {
       authorizer: cognitoAuthorizer,
     });
@@ -458,6 +488,9 @@ export class PicklePlayDatesStack extends cdk.Stack {
 
     const usersResource = api.root.addResource('users');
     const meResource = usersResource.addResource('me');
+    meResource.addMethod('GET', createLambdaIntegration(getUserProfileLambda), {
+      authorizer: cognitoAuthorizer,
+    });
     meResource.addMethod('PUT', createLambdaIntegration(updateUserProfileLambda), {
       authorizer: cognitoAuthorizer,
     });

@@ -9,8 +9,8 @@ import {
 
   formatDateForDDB 
 } from '../shared/utils';
-import { putGame, getUserProfile } from '../shared/dynamodb';
-import { Game, CreateGameRequest, ValidationError } from '../shared/types';
+import { putGame, getUserProfile, addPlayerToGame } from '../shared/dynamodb';
+import { Game, CreateGameRequest, ValidationError, GamePlayer } from '../shared/types';
 
 export const handler = async (
   event: APIGatewayProxyEvent
@@ -89,15 +89,17 @@ export const handler = async (
     await putGame(game);
 
     // Add organizer as first player
-//     // const organizer = {
-//       pk: `GAME#${gameId}`,
-//       sk: `PLAYER#${userId}`,
-//       gameId,
-//       userId,
-//       userName: userProfile.name,
-//       joinedAt: now,
-//       dupr: userProfile.dupr,
-//     };
+    const organizer: GamePlayer = {
+      pk: `GAME#${gameId}`,
+      sk: `PLAYER#${userId}`,
+      gameId,
+      userId,
+      userName: userProfile.name,
+      joinedAt: now,
+      ...(userProfile.dupr && { dupr: userProfile.dupr }),
+    };
+
+    await addPlayerToGame(gameId, organizer);
 
     // Note: In real implementation, we'd use a transaction to ensure both operations succeed
     // For simplicity, we're doing separate operations here

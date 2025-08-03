@@ -4,14 +4,43 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '@/lib/auth'
 import { apiClient, Game } from '@/lib/api'
 import { CreateGameModal } from './CreateGameModal'
+import { ModifyGameModal } from './ModifyGameModal'
+import { ViewGameDetailsModal } from './ViewGameDetailsModal'
+import { UserProfileModal } from './UserProfileModal'
 import { LoadingSpinner } from './LoadingSpinner'
 
 export function Dashboard() {
-  const { user, signOut } = useAuth()
+  const { user, signOut, needsProfileCompletion, setNeedsProfileCompletion } = useAuth()
   const [games, setGames] = useState<Game[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming')
+  const [activeTab, setActiveTab] = useState<'available' | 'my-games' | 'past-games'>('available')
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [isModifyModalOpen, setIsModifyModalOpen] = useState(false)
+  const [selectedGame, setSelectedGame] = useState<Game | null>(null)
+  const [isViewDetailsModalOpen, setIsViewDetailsModalOpen] = useState(false)
+  const [selectedGameId, setSelectedGameId] = useState<string | null>(null)
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
+
+  // Get current user ID
+  const getCurrentUserId = (): string | null => {
+    if (!user) return null
+    // The user ID should be available as user.userId or in user.username for Cognito
+    return user.userId || user.username || null
+  }
+
+  // Determine user's relationship to a game
+  const getUserGameRelationship = (game: Game): 'owner' | 'member' | 'none' => {
+    const userId = getCurrentUserId()
+    if (!userId) return 'none'
+    
+    // Check if user is the organizer/owner
+    if (game.organizerId === userId) return 'owner'
+    
+    // Check if user is a member (in the players list)
+    if (game.players?.some(player => player.userId === userId)) return 'member'
+    
+    return 'none'
+  }
 
   useEffect(() => {
     loadGames()
@@ -20,13 +49,60 @@ export function Dashboard() {
   const loadGames = async () => {
     try {
       setIsLoading(true)
-      const data = await apiClient.getUserSchedule(activeTab)
+      let data
+      if (activeTab === 'available') {
+        data = await apiClient.getAvailableGames()
+      } else if (activeTab === 'my-games') {
+        data = await apiClient.getUserSchedule('upcoming')
+      } else {
+        data = await apiClient.getUserSchedule('past')
+      }
       setGames(data.games)
     } catch (error) {
       console.error('Error loading games:', error)
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleJoinGame = async (gameId: string) => {
+    try {
+      await apiClient.joinGame(gameId)
+      loadGames() // Reload games to update the list
+    } catch (error) {
+      console.error('Error joining game:', error)
+      alert('Failed to join game. Please try again.')
+    }
+  }
+
+  const handleLeaveGame = async (gameId: string) => {
+    try {
+      await apiClient.leaveGame(gameId)
+      loadGames() // Reload games to update the list
+    } catch (error) {
+      console.error('Error leaving game:', error)
+      alert('Failed to leave game. Please try again.')
+    }
+  }
+
+  const handleOpenModifyModal = (game: Game) => {
+    setSelectedGame(game)
+    setIsModifyModalOpen(true)
+  }
+
+  const handleCloseModifyModal = () => {
+    setIsModifyModalOpen(false)
+    setSelectedGame(null)
+  }
+
+  const handleOpenViewDetailsModal = (gameId: string) => {
+    setSelectedGameId(gameId)
+    setIsViewDetailsModalOpen(true)
+  }
+
+  const handleCloseViewDetailsModal = () => {
+    setIsViewDetailsModalOpen(false)
+    setSelectedGameId(null)
   }
 
   const formatDateTime = (dateTimeUTC: string) => {
@@ -63,6 +139,12 @@ export function Dashboard() {
                 {user?.signInDetails?.loginId}
               </span>
               <button
+                onClick={() => setIsProfileModalOpen(true)}
+                className="btn btn-secondary text-sm"
+              >
+                Profile
+              </button>
+              <button
                 onClick={signOut}
                 className="btn btn-secondary text-sm"
               >
@@ -80,20 +162,21 @@ export function Dashboard() {
           <div className="sm:hidden">
             <select
               value={activeTab}
-              onChange={(e) => setActiveTab(e.target.value as 'upcoming' | 'past')}
+              onChange={(e) => setActiveTab(e.target.value as 'available' | 'my-games' | 'past-games')}
               className="block w-full rounded-md border-gray-300 focus:border-primary-500 focus:ring-primary-500"
             >
-              <option value="upcoming">Upcoming Games</option>
-              <option value="past">Past Games</option>
+              <option value="available">Upcoming Games</option>
+              <option value="my-games">My Games</option>
+              <option value="past-games">My Past Games</option>
             </select>
           </div>
           <div className="hidden sm:block">
             <div className="border-b border-gray-200">
               <nav className="-mb-px flex space-x-8">
                 <button
-                  onClick={() => setActiveTab('upcoming')}
+                  onClick={() => setActiveTab('available')}
                   className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === 'upcoming'
+                    activeTab === 'available'
                       ? 'border-primary-500 text-primary-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
@@ -101,14 +184,24 @@ export function Dashboard() {
                   Upcoming Games
                 </button>
                 <button
-                  onClick={() => setActiveTab('past')}
+                  onClick={() => setActiveTab('my-games')}
                   className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === 'past'
+                    activeTab === 'my-games'
                       ? 'border-primary-500 text-primary-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
-                  Past Games
+                  My Games
+                </button>
+                <button
+                  onClick={() => setActiveTab('past-games')}
+                  className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === 'past-games'
+                      ? 'border-primary-500 text-primary-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  My Past Games
                 </button>
               </nav>
             </div>
@@ -126,14 +219,16 @@ export function Dashboard() {
               🏓
             </div>
             <h3 className="mt-2 text-sm font-medium text-gray-900">
-              No {activeTab} games
+              No {activeTab === 'available' ? 'upcoming' : activeTab === 'my-games' ? 'current' : 'past'} games
             </h3>
             <p className="mt-1 text-sm text-gray-500">
-              {activeTab === 'upcoming' 
-                ? 'Create a new game to get started.' 
+              {activeTab === 'available' 
+                ? 'No games available to join. Create a new game to get started.' 
+                : activeTab === 'my-games'
+                ? 'You haven\'t joined any games yet.'
                 : 'No games played yet.'}
             </p>
-            {activeTab === 'upcoming' && (
+            {(activeTab === 'available' || activeTab === 'my-games') && (
               <div className="mt-6">
                 <button 
                   onClick={() => setIsCreateModalOpen(true)}
@@ -148,6 +243,8 @@ export function Dashboard() {
           <div className="space-y-4">
             {games.map((game) => {
               const { date, time } = formatDateTime(game.datetimeUTC)
+              const relationship = getUserGameRelationship(game)
+              
               return (
                 <div key={game.gameId} className="card p-6">
                   <div className="flex items-center justify-between">
@@ -159,6 +256,11 @@ export function Dashboard() {
                         <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(game.status)}`}>
                           {game.status}
                         </span>
+                        {relationship === 'owner' && (
+                          <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full text-purple-600 bg-purple-100">
+                            Organizer
+                          </span>
+                        )}
                       </div>
                       <div className="mt-1 flex items-center space-x-4 text-sm text-gray-500">
                         <span>📅 {date}</span>
@@ -167,7 +269,59 @@ export function Dashboard() {
                       </div>
                     </div>
                     <div className="flex space-x-2">
-                      <button className="btn btn-secondary text-sm">
+                      {activeTab === 'available' && (
+                        <>
+                          {relationship === 'none' && (
+                            <button 
+                              onClick={() => handleJoinGame(game.gameId)}
+                              className="btn btn-primary text-sm"
+                              disabled={game.currentPlayers >= game.maxPlayers}
+                            >
+                              {game.currentPlayers >= game.maxPlayers ? 'Full' : 'Join Game'}
+                            </button>
+                          )}
+                          {relationship === 'member' && (
+                            <button 
+                              onClick={() => handleLeaveGame(game.gameId)}
+                              className="btn btn-secondary text-sm"
+                            >
+                              Leave Game
+                            </button>
+                          )}
+                          {relationship === 'owner' && (
+                            <button 
+                              onClick={() => handleOpenModifyModal(game)}
+                              className="btn btn-primary text-sm"
+                            >
+                              Modify Game
+                            </button>
+                          )}
+                        </>
+                      )}
+                      {activeTab === 'my-games' && (
+                        <>
+                          {relationship === 'member' && (
+                            <button 
+                              onClick={() => handleLeaveGame(game.gameId)}
+                              className="btn btn-secondary text-sm"
+                            >
+                              Leave Game
+                            </button>
+                          )}
+                          {relationship === 'owner' && (
+                            <button 
+                              onClick={() => handleOpenModifyModal(game)}
+                              className="btn btn-primary text-sm"
+                            >
+                              Modify Game
+                            </button>
+                          )}
+                        </>
+                      )}
+                      <button 
+                        onClick={() => handleOpenViewDetailsModal(game.gameId)}
+                        className="btn btn-secondary text-sm"
+                      >
                         View Details
                       </button>
                     </div>
@@ -184,6 +338,37 @@ export function Dashboard() {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onGameCreated={loadGames}
+      />
+
+      {/* Modify Game Modal */}
+      <ModifyGameModal
+        isOpen={isModifyModalOpen}
+        onClose={handleCloseModifyModal}
+        game={selectedGame}
+        onGameModified={loadGames}
+      />
+
+      {/* View Game Details Modal */}
+      <ViewGameDetailsModal
+        isOpen={isViewDetailsModalOpen}
+        onClose={handleCloseViewDetailsModal}
+        gameId={selectedGameId}
+      />
+
+      {/* User Profile Modal */}
+      <UserProfileModal
+        isOpen={isProfileModalOpen || needsProfileCompletion}
+        onClose={() => {
+          setIsProfileModalOpen(false)
+          if (needsProfileCompletion) {
+            setNeedsProfileCompletion(false)
+          }
+        }}
+        onProfileUpdated={() => {
+          loadGames()
+          setNeedsProfileCompletion(false)
+        }}
+        isInitialSetup={needsProfileCompletion}
       />
     </div>
   )

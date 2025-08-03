@@ -31,9 +31,11 @@ Amplify.configure({
 interface AuthContextType {
   user: AuthUser | null
   isLoading: boolean
+  needsProfileCompletion: boolean
   signInWithGoogle: () => Promise<void>
   signOut: () => Promise<void>
   checkAuthState: () => Promise<void>
+  setNeedsProfileCompletion: (needs: boolean) => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -41,6 +43,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [needsProfileCompletion, setNeedsProfileCompletion] = useState(false)
 
   useEffect(() => {
     checkAuthState()
@@ -55,6 +58,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         await apiClient.initializeUserProfile()
         console.log('✅ Profile initialized successfully')
+        
+        // Check if profile needs completion
+        try {
+          const profile = await apiClient.getCurrentUserProfile()
+          // Profile needs completion if DUPR is missing or name is still default
+          const needsCompletion = !profile.dupr || 
+                                 profile.name === 'Pickle Player' || 
+                                 profile.name === 'New Player'
+          setNeedsProfileCompletion(needsCompletion)
+        } catch (error) {
+          console.log('⚠️ Could not check profile completion status:', error)
+          setNeedsProfileCompletion(true) // Assume needs completion if we can't check
+        }
       } catch (error) {
         // Ignore errors - profile might already exist or API might not be ready
         console.log('⚠️ Profile initialization skipped:', error)
@@ -62,6 +78,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.log('No authenticated user')
       setUser(null)
+      setNeedsProfileCompletion(false)
     } finally {
       setIsLoading(false)
     }
@@ -91,9 +108,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value = {
     user,
     isLoading,
+    needsProfileCompletion,
     signInWithGoogle,
     signOut: handleSignOut,
-    checkAuthState
+    checkAuthState,
+    setNeedsProfileCompletion
   }
 
   return (

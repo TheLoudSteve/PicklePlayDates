@@ -25,8 +25,9 @@ export const handler = async (
     }
 
     // For now, use simple defaults - we can enhance this later
+    // In production, we'd extract name from JWT token or OAuth provider
     const email = `user-${userId}@example.com`;
-    const fullName = 'Pickle Player';
+    const fullName = 'New Player'; // Generic default that encourages profile completion
 
     const now = formatDateForDDB(new Date());
 
