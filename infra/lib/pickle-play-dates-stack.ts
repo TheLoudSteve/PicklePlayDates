@@ -255,7 +255,7 @@ export class PicklePlayDatesStack extends cdk.Stack {
       restApiName: `pickle-play-dates-api-${environment}`,
       description: 'API for Pickle Play Dates application',
       defaultCorsPreflightOptions: {
-        allowOrigins: ['https://d1w3xzob0r3y0f.cloudfront.net', 'http://localhost:3000'],
+        allowOrigins: ['https://dodcyw1qbl5cy.cloudfront.net', 'http://localhost:3000'],
         allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
         allowHeaders: ['Content-Type', 'X-Amz-Date', 'Authorization', 'X-Api-Key', 'X-Amz-Security-Token'],
         allowCredentials: true,
@@ -280,7 +280,7 @@ export class PicklePlayDatesStack extends cdk.Stack {
     api.addGatewayResponse('unauthorized', {
       type: apigateway.ResponseType.UNAUTHORIZED,
       responseHeaders: {
-        'Access-Control-Allow-Origin': "'https://d1w3xzob0r3y0f.cloudfront.net'",
+        'Access-Control-Allow-Origin': "'https://dodcyw1qbl5cy.cloudfront.net'",
         'Access-Control-Allow-Headers': "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'",
         'Access-Control-Allow-Methods': "'GET,POST,PUT,DELETE,OPTIONS'",
         'Access-Control-Allow-Credentials': "'true'",
@@ -290,7 +290,7 @@ export class PicklePlayDatesStack extends cdk.Stack {
     api.addGatewayResponse('forbidden', {
       type: apigateway.ResponseType.ACCESS_DENIED,
       responseHeaders: {
-        'Access-Control-Allow-Origin': "'https://d1w3xzob0r3y0f.cloudfront.net'",
+        'Access-Control-Allow-Origin': "'https://dodcyw1qbl5cy.cloudfront.net'",
         'Access-Control-Allow-Headers': "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'",
         'Access-Control-Allow-Methods': "'GET,POST,PUT,DELETE,OPTIONS'",
         'Access-Control-Allow-Credentials': "'true'",
@@ -300,7 +300,7 @@ export class PicklePlayDatesStack extends cdk.Stack {
     api.addGatewayResponse('bad-request-body', {
       type: apigateway.ResponseType.BAD_REQUEST_BODY,
       responseHeaders: {
-        'Access-Control-Allow-Origin': "'https://d1w3xzob0r3y0f.cloudfront.net'",
+        'Access-Control-Allow-Origin': "'https://dodcyw1qbl5cy.cloudfront.net'",
         'Access-Control-Allow-Headers': "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'",
         'Access-Control-Allow-Methods': "'GET,POST,PUT,DELETE,OPTIONS'",
         'Access-Control-Allow-Credentials': "'true'",
@@ -310,131 +310,112 @@ export class PicklePlayDatesStack extends cdk.Stack {
     api.addGatewayResponse('default-5xx', {
       type: apigateway.ResponseType.DEFAULT_5XX,
       responseHeaders: {
-        'Access-Control-Allow-Origin': "'https://d1w3xzob0r3y0f.cloudfront.net'",
+        'Access-Control-Allow-Origin': "'https://dodcyw1qbl5cy.cloudfront.net'",
         'Access-Control-Allow-Headers': "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'",
         'Access-Control-Allow-Methods': "'GET,POST,PUT,DELETE,OPTIONS'",
         'Access-Control-Allow-Credentials': "'true'",
       },
     });
 
-    // Lambda functions will be created in separate files
-    const lambdaProps = {
-      runtime: lambda.Runtime.NODEJS_20_X,
-      role: lambdaExecutionRole,
-      environment: {
-        TABLE_NAME: table.tableName,
-        SES_CONFIGURATION_SET: sesConfigurationSet.configurationSetName,
-        SNS_TOPIC_ARN: notificationTopic.topicArn,
-        ENVIRONMENT: environment,
-      },
-      timeout: cdk.Duration.seconds(30),
-      tracing: lambda.Tracing.ACTIVE,
-      logRetention: logs.RetentionDays.ONE_WEEK,
+    // Helper function to create Lambda without deprecated logRetention
+    const createLambdaFunction = (id: string, functionName: string, handler: string) => {
+      return new lambda.Function(this, id, {
+        runtime: lambda.Runtime.NODEJS_20_X,
+        role: lambdaExecutionRole,
+        environment: {
+          TABLE_NAME: table.tableName,
+          SES_CONFIGURATION_SET: sesConfigurationSet.configurationSetName,
+          SNS_TOPIC_ARN: notificationTopic.topicArn,
+          ENVIRONMENT: environment,
+        },
+        timeout: cdk.Duration.seconds(30),
+        tracing: lambda.Tracing.ACTIVE,
+        functionName: functionName,
+        code: lambda.Code.fromAsset('../services/dist'),
+        handler: handler,
+        // Note: We're not setting logGroup or logRetention
+        // Lambda will create log groups automatically with default settings
+      });
     };
 
-    // Create Games Lambda
-    const createGameLambda = new lambda.Function(this, 'CreateGameFunction', {
-      ...lambdaProps,
-      functionName: `pickle-play-dates-create-game-${environment}`,
-      code: lambda.Code.fromAsset('../services/dist'),
-      handler: 'create-game/index.handler',
-    });
+    // Create all Lambda functions
+    const createGameLambda = createLambdaFunction(
+      'CreateGameFunction',
+      `pickle-play-dates-create-game-${environment}`,
+      'create-game/index.handler'
+    );
 
-    // Get Game Lambda
-    const getGameLambda = new lambda.Function(this, 'GetGameFunction', {
-      ...lambdaProps,
-      functionName: `pickle-play-dates-get-game-${environment}`,
-      code: lambda.Code.fromAsset('../services/dist'),
-      handler: 'get-game/index.handler',
-    });
+    const getGameLambda = createLambdaFunction(
+      'GetGameFunction',
+      `pickle-play-dates-get-game-${environment}`,
+      'get-game/index.handler'
+    );
 
-    // Get Available Games Lambda
-    const getAvailableGamesLambda = new lambda.Function(this, 'GetAvailableGamesFunction', {
-      ...lambdaProps,
-      functionName: `pickle-play-dates-get-available-games-${environment}`,
-      code: lambda.Code.fromAsset('../services/dist'),
-      handler: 'get-available-games/index.handler',
-    });
+    const getAvailableGamesLambda = createLambdaFunction(
+      'GetAvailableGamesFunction',
+      `pickle-play-dates-get-available-games-${environment}`,
+      'get-available-games/index.handler'
+    );
 
-    // Join Game Lambda
-    const joinGameLambda = new lambda.Function(this, 'JoinGameFunction', {
-      ...lambdaProps,
-      functionName: `pickle-play-dates-join-game-${environment}`,
-      code: lambda.Code.fromAsset('../services/dist'),
-      handler: 'join-game/index.handler',
-    });
+    const joinGameLambda = createLambdaFunction(
+      'JoinGameFunction',
+      `pickle-play-dates-join-game-${environment}`,
+      'join-game/index.handler'
+    );
 
-    // Leave Game Lambda
-    const leaveGameLambda = new lambda.Function(this, 'LeaveGameFunction', {
-      ...lambdaProps,
-      functionName: `pickle-play-dates-leave-game-${environment}`,
-      code: lambda.Code.fromAsset('../services/dist'),
-      handler: 'leave-game/index.handler',
-    });
+    const leaveGameLambda = createLambdaFunction(
+      'LeaveGameFunction',
+      `pickle-play-dates-leave-game-${environment}`,
+      'leave-game/index.handler'
+    );
 
-    // Update Game Lambda
-    const updateGameLambda = new lambda.Function(this, 'UpdateGameFunction', {
-      ...lambdaProps,
-      functionName: `pickle-play-dates-update-game-${environment}`,
-      code: lambda.Code.fromAsset('../services/dist'),
-      handler: 'update-game/index.handler',
-    });
+    const updateGameLambda = createLambdaFunction(
+      'UpdateGameFunction',
+      `pickle-play-dates-update-game-${environment}`,
+      'update-game/index.handler'
+    );
 
-    // Cancel Game Lambda
-    const cancelGameLambda = new lambda.Function(this, 'CancelGameFunction', {
-      ...lambdaProps,
-      functionName: `pickle-play-dates-cancel-game-${environment}`,
-      code: lambda.Code.fromAsset('../services/dist'),
-      handler: 'cancel-game/index.handler',
-    });
+    const cancelGameLambda = createLambdaFunction(
+      'CancelGameFunction',
+      `pickle-play-dates-cancel-game-${environment}`,
+      'cancel-game/index.handler'
+    );
 
-    // Kick Player Lambda
-    const kickPlayerLambda = new lambda.Function(this, 'KickPlayerFunction', {
-      ...lambdaProps,
-      functionName: `pickle-play-dates-kick-player-${environment}`,
-      code: lambda.Code.fromAsset('../services/dist'),
-      handler: 'kick-player/index.handler',
-    });
+    const kickPlayerLambda = createLambdaFunction(
+      'KickPlayerFunction',
+      `pickle-play-dates-kick-player-${environment}`,
+      'kick-player/index.handler'
+    );
 
-    // Get User Schedule Lambda
-    const getUserScheduleLambda = new lambda.Function(this, 'GetUserScheduleFunction', {
-      ...lambdaProps,
-      functionName: `pickle-play-dates-get-user-schedule-${environment}`,
-      code: lambda.Code.fromAsset('../services/dist'),
-      handler: 'get-user-schedule/index.handler',
-    });
+    const getUserScheduleLambda = createLambdaFunction(
+      'GetUserScheduleFunction',
+      `pickle-play-dates-get-user-schedule-${environment}`,
+      'get-user-schedule/index.handler'
+    );
 
-    // Get User Profile Lambda
-    const getUserProfileLambda = new lambda.Function(this, 'GetUserProfileFunction', {
-      ...lambdaProps,
-      functionName: `pickle-play-dates-get-user-profile-${environment}`,
-      code: lambda.Code.fromAsset('../services/dist'),
-      handler: 'get-user-profile/index.handler',
-    });
+    const getUserProfileLambda = createLambdaFunction(
+      'GetUserProfileFunction',
+      `pickle-play-dates-get-user-profile-${environment}`,
+      'get-user-profile/index.handler'
+    );
 
-    // Update User Profile Lambda
-    const updateUserProfileLambda = new lambda.Function(this, 'UpdateUserProfileFunction', {
-      ...lambdaProps,
-      functionName: `pickle-play-dates-update-user-profile-${environment}`,
-      code: lambda.Code.fromAsset('../services/dist'),
-      handler: 'update-user-profile/index.handler',
-    });
+    const updateUserProfileLambda = createLambdaFunction(
+      'UpdateUserProfileFunction',
+      `pickle-play-dates-update-user-profile-${environment}`,
+      'update-user-profile/index.handler'
+    );
 
-    // Initialize User Profile Lambda
-    const initializeUserProfileLambda = new lambda.Function(this, 'InitializeUserProfileFunction', {
-      ...lambdaProps,
-      functionName: `pickle-play-dates-initialize-user-profile-${environment}`,
-      code: lambda.Code.fromAsset('../services/dist'),
-      handler: 'initialize-user-profile/index.handler',
-    });
+    const initializeUserProfileLambda = createLambdaFunction(
+      'InitializeUserProfileFunction',
+      `pickle-play-dates-initialize-user-profile-${environment}`,
+      'initialize-user-profile/index.handler'
+    );
 
-    // Notification Lambda (for DynamoDB Streams)
-    const notificationLambda = new lambda.Function(this, 'NotificationFunction', {
-      ...lambdaProps,
-      functionName: `pickle-play-dates-notifications-${environment}`,
-      code: lambda.Code.fromAsset('../services/dist'),
-      handler: 'notifications/index.handler',
-    });
+    const notificationLambda = createLambdaFunction(
+      'NotificationFunction',
+      `pickle-play-dates-notifications-${environment}`,
+      'notifications/index.handler'
+    );
 
     // DynamoDB Stream Event Source
     notificationLambda.addEventSource(
@@ -443,6 +424,25 @@ export class PicklePlayDatesStack extends cdk.Stack {
         batchSize: 10,
         maxBatchingWindow: cdk.Duration.seconds(5),
       })
+    );
+
+    // Court Management Lambdas
+    const createCourtLambda = createLambdaFunction(
+      'CreateCourtFunction',
+      `pickle-play-dates-create-court-${environment}`,
+      'create-court/index.handler'
+    );
+
+    const searchCourtsLambda = createLambdaFunction(
+      'SearchCourtsFunction',
+      `pickle-play-dates-search-courts-${environment}`,
+      'search-courts/index.handler'
+    );
+
+    const adminManageCourtsLambda = createLambdaFunction(
+      'AdminManageCourtsFunction',
+      `pickle-play-dates-admin-manage-courts-${environment}`,
+      'admin-manage-courts/index.handler'
     );
 
     // Simple Lambda integration - let Lambda handle CORS headers
@@ -505,6 +505,28 @@ export class PicklePlayDatesStack extends cdk.Stack {
       authorizer: cognitoAuthorizer,
     });
 
+    // Court Routes
+    const courtsResource = api.root.addResource('courts');
+    courtsResource.addMethod('GET', createLambdaIntegration(searchCourtsLambda));
+    courtsResource.addMethod('POST', createLambdaIntegration(createCourtLambda), {
+      authorizer: cognitoAuthorizer,
+    });
+
+    // Admin Court Management Routes
+    const adminResource = api.root.addResource('admin');
+    const adminCourtsResource = adminResource.addResource('courts');
+    adminCourtsResource.addMethod('GET', createLambdaIntegration(adminManageCourtsLambda), {
+      authorizer: cognitoAuthorizer,
+    });
+
+    const adminCourtResource = adminCourtsResource.addResource('{courtId}');
+    adminCourtResource.addMethod('PUT', createLambdaIntegration(adminManageCourtsLambda), {
+      authorizer: cognitoAuthorizer,
+    });
+    adminCourtResource.addMethod('DELETE', createLambdaIntegration(adminManageCourtsLambda), {
+      authorizer: cognitoAuthorizer,
+    });
+
     // Budget Alert
     new budgets.CfnBudget(this, 'CostBudget', {
       budget: {
@@ -564,6 +586,11 @@ export class PicklePlayDatesStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'CloudFrontURL', {
       value: `https://${distribution.distributionDomainName}`,
       description: 'CloudFront Distribution URL',
+    });
+
+    new cdk.CfnOutput(this, 'CloudFrontDistributionId', {
+      value: distribution.distributionId,
+      description: 'CloudFront Distribution ID',
     });
 
     new cdk.CfnOutput(this, 'S3BucketName', {

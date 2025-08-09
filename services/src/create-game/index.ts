@@ -9,7 +9,7 @@ import {
 
   formatDateForDDB 
 } from '../shared/utils';
-import { putGame, getUserProfile, addPlayerToGame } from '../shared/dynamodb';
+import { putGame, getUserProfile, addPlayerToGame, getCourt } from '../shared/dynamodb';
 import { Game, CreateGameRequest, ValidationError, GamePlayer } from '../shared/types';
 
 export const handler = async (
@@ -38,8 +38,8 @@ export const handler = async (
       }
     }
 
-    if (!body.locationId) {
-      validationErrors.push({ field: 'locationId', message: 'Location ID is required' });
+    if (!body.courtId) {
+      validationErrors.push({ field: 'courtId', message: 'Court ID is required' });
     }
 
     const minPlayers = body.minPlayers || 4;
@@ -63,6 +63,16 @@ export const handler = async (
       return createErrorResponse(404, 'User profile not found');
     }
 
+    // Get court information
+    const court = await getCourt(body.courtId);
+    if (!court) {
+      return createErrorResponse(404, 'Court not found');
+    }
+
+    if (!court.isApproved || !court.isActive) {
+      return createErrorResponse(400, 'Court is not available for games');
+    }
+
     // Create game
     const gameId = `game_${Date.now()}_${uuidv4().substring(0, 8)}`;
     const now = formatDateForDDB(new Date());
@@ -73,14 +83,18 @@ export const handler = async (
       gameId,
       organizerId: userId,
       datetimeUTC: body.datetimeUTC,
-      locationId: body.locationId,
+      courtId: body.courtId,
+      courtName: court.name,
+      courtAddress: court.address,
+      latitude: court.latitude,
+      longitude: court.longitude,
       minPlayers,
       maxPlayers,
       currentPlayers: 1, // Organizer is automatically in the game
       status: 'scheduled',
       createdAt: now,
       updatedAt: now,
-      gsi1pk: `USER#${userId}`,
+      gsi1pk: `COURT#${body.courtId}`,
       gsi1sk: `GAME#${body.datetimeUTC}`,
       gsi2pk: `USER#${userId}`,
       gsi2sk: `GAME#${body.datetimeUTC}`,
@@ -108,7 +122,11 @@ export const handler = async (
       gameId,
       organizerId: userId,
       datetimeUTC: body.datetimeUTC,
-      locationId: body.locationId,
+      courtId: body.courtId,
+      courtName: court.name,
+      courtAddress: court.address,
+      latitude: court.latitude,
+      longitude: court.longitude,
       minPlayers,
       maxPlayers,
       currentPlayers: 1,

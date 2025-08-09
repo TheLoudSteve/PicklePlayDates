@@ -96,6 +96,50 @@ export function formatDateForDDB(date: Date): string {
   return date.toISOString();
 }
 
+/**
+ * Geocode an address to get latitude and longitude coordinates
+ * Uses OpenStreetMap Nominatim API (free, no API key required)
+ */
+export async function geocodeAddress(address: string, city: string, state: string, zipCode: string, country: string): Promise<{ latitude: number; longitude: number }> {
+  try {
+    // Construct the full address
+    const fullAddress = `${address}, ${city}, ${state} ${zipCode}, ${country}`;
+    
+    // URL encode the address
+    const encodedAddress = encodeURIComponent(fullAddress);
+    
+    // Use Nominatim API for geocoding (free, no API key required)
+    const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodedAddress}&limit=1`, {
+      headers: {
+        'User-Agent': 'PicklePlayDates/1.0 (contact@example.com)' // Required by Nominatim
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Geocoding API error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    if (!data || data.length === 0) {
+      throw new Error('Address not found. Please check the address and try again.');
+    }
+    
+    const location = data[0];
+    const latitude = parseFloat(location.lat);
+    const longitude = parseFloat(location.lon);
+    
+    if (isNaN(latitude) || isNaN(longitude)) {
+      throw new Error('Invalid coordinates returned from geocoding service.');
+    }
+    
+    return { latitude, longitude };
+  } catch (error) {
+    console.error('Geocoding error:', error);
+    throw new Error('Failed to geocode address. Please verify the address is correct.');
+  }
+}
+
 export function generateGameId(): string {
   return `game_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 }

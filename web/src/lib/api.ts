@@ -8,7 +8,11 @@ export interface Game {
   gameId: string
   organizerId: string
   datetimeUTC: string
-  locationId: string
+  courtId: string
+  courtName: string
+  courtAddress: string
+  latitude?: number
+  longitude?: number
   minPlayers: number
   maxPlayers: number
   currentPlayers: number
@@ -31,13 +35,62 @@ export interface UserProfile {
   name: string
   phone?: string
   dupr?: 'Below 3' | '3 to 3.5' | '3.5 to 4' | '4 to 4.5' | 'Above 4.5'
+  role: 'user' | 'admin'
   createdAt: string
   updatedAt: string
 }
 
+export interface Court {
+  courtId: string
+  name: string
+  address: string
+  city: string
+  state: string
+  zipCode: string
+  country: string
+  latitude: number
+  longitude: number
+  courtType: 'indoor' | 'outdoor' | 'both'
+  numberOfCourts: number
+  isReservable: boolean
+  reservationInfo?: string
+  hoursOfOperation?: string
+  amenities?: string[]
+  fees?: string
+  website?: string
+  phone?: string
+  description?: string
+  submittedBy: string
+  submittedByName: string
+  approvedBy?: string
+  isApproved: boolean
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateCourtRequest {
+  name: string
+  address: string
+  city: string
+  state: string
+  zipCode: string
+  country: string
+  courtType: 'indoor' | 'outdoor' | 'both'
+  numberOfCourts: number
+  isReservable: boolean
+  reservationInfo?: string
+  hoursOfOperation?: string
+  amenities?: string[]
+  fees?: string
+  website?: string
+  phone?: string
+  description?: string
+}
+
 export interface CreateGameRequest {
   datetimeUTC: string
-  locationId: string
+  courtId: string
   minPlayers?: number
   maxPlayers?: number
 }
@@ -152,6 +205,58 @@ class ApiClient {
 
   async getCurrentUserProfile(): Promise<UserProfile> {
     return this.request<UserProfile>('/users/me')
+  }
+
+  // Court API methods
+  async createCourt(court: CreateCourtRequest): Promise<Court> {
+    return this.request<Court>('/courts', {
+      method: 'POST',
+      body: JSON.stringify(court),
+    })
+  }
+
+  async searchCourts(params?: {
+    city?: string
+    latitude?: number
+    longitude?: number
+    radius?: number
+    isApproved?: boolean
+  }): Promise<{ courts: Court[], count: number }> {
+    const queryParams = new URLSearchParams()
+    if (params?.city) queryParams.append('city', params.city)
+    if (params?.latitude) queryParams.append('latitude', params.latitude.toString())
+    if (params?.longitude) queryParams.append('longitude', params.longitude.toString())
+    if (params?.radius) queryParams.append('radius', params.radius.toString())
+    if (params?.isApproved !== undefined) queryParams.append('isApproved', params.isApproved.toString())
+
+    const url = queryParams.toString() ? `/courts?${queryParams.toString()}` : '/courts'
+    return this.request<{ courts: Court[], count: number }>(url)
+  }
+
+  // Admin court management
+  async getAdminCourts(includeUnapproved?: boolean): Promise<{ courts: Court[], count: number }> {
+    const queryParams = includeUnapproved ? '?includeUnapproved=true' : ''
+    return this.request<{ courts: Court[], count: number }>(`/admin/courts${queryParams}`)
+  }
+
+  async approveCourtAsAdmin(courtId: string, approved: boolean): Promise<Court> {
+    return this.request<Court>(`/admin/courts/${courtId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ isApproved: approved }),
+    })
+  }
+
+  async updateCourtAsAdmin(courtId: string, updates: Partial<Court>): Promise<Court> {
+    return this.request<Court>(`/admin/courts/${courtId}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    })
+  }
+
+  async deleteCourtAsAdmin(courtId: string): Promise<{ courtId: string }> {
+    return this.request<{ courtId: string }>(`/admin/courts/${courtId}`, {
+      method: 'DELETE',
+    })
   }
 
   async updateUserProfile(profile: UpdateUserProfileRequest): Promise<UserProfile> {

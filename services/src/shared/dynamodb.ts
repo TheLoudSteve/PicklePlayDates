@@ -9,7 +9,7 @@ import {
   ScanCommand,
   TransactWriteCommand 
 } from '@aws-sdk/lib-dynamodb';
-import { Game, GamePlayer, UserProfile } from './types';
+import { Game, GamePlayer, UserProfile, Court } from './types';
 
 const client = new DynamoDBClient({});
 export const ddb = DynamoDBDocumentClient.from(client);
@@ -227,7 +227,7 @@ export async function updateUserProfile(
 export async function getAllAvailableGames(): Promise<Game[]> {
   try {
     const now = new Date().toISOString();
-    
+
     const result = await ddb.send(new ScanCommand({
       TableName: TABLE_NAME,
       FilterExpression: 'begins_with(pk, :gamePrefix) AND sk = :metadata AND datetimeUTC > :now AND #status = :scheduled',
@@ -241,9 +241,9 @@ export async function getAllAvailableGames(): Promise<Game[]> {
         ':scheduled': 'scheduled'
       }
     }));
-    
+
     // Sort by datetime (earliest first)
-    const games = (result.Items as Game[] || []).sort((a, b) => 
+    const games = (result.Items as Game[] || []).sort((a, b) =>
       new Date(a.datetimeUTC).getTime() - new Date(b.datetimeUTC).getTime()
     );
 
@@ -262,12 +262,193 @@ export async function getAllAvailableGames(): Promise<Game[]> {
         };
       })
     );
-    
+
     return gamesWithPlayers;
   } catch (error) {
     console.error('Error getting all available games:', error);
     throw error;
   }
+}
+
+// Court management functions
+export async function putCourt(court: Court): Promise<void> {
+  try {
+    await ddb.send(new PutCommand({
+      TableName: TABLE_NAME,
+      Item: court
+    }));
+  } catch (error) {
+    console.error('Error putting court:', error);
+    throw error;
+  }
+}
+
+export async function getCourt(courtId: string): Promise<Court | null> {
+  try {
+    const result = await ddb.send(new GetCommand({
+      TableName: TABLE_NAME,
+      Key: {
+        pk: `COURT#${courtId}`,
+        sk: 'METADATA'
+      }
+    }));
+    return result.Item as Court || null;
+  } catch (error) {
+    console.error('Error getting court:', error);
+    throw error;
+  }
+}
+
+export async function updateCourt(courtId: string, updates: Partial<Court>): Promise<void> {
+  try {
+    const updateExpressions = [];
+    const expressionAttributeNames: any = {};
+    const expressionAttributeValues: any = {};
+    
+    for (const [key, value] of Object.entries(updates)) {
+      if (value !== undefined && key !== 'pk' && key !== 'sk' && key !== 'courtId') {
+        updateExpressions.push(`#${key} = :${key}`);
+        expressionAttributeNames[`#${key}`] = key;
+        expressionAttributeValues[`:${key}`] = value;
+      }
+    }
+    
+    if (updateExpressions.length === 0) {
+      return;
+    }
+    
+    await ddb.send(new UpdateCommand({
+      TableName: TABLE_NAME,
+      Key: {
+        pk: `COURT#${courtId}`,
+        sk: 'METADATA'
+      },
+      UpdateExpression: `SET ${updateExpressions.join(', ')}`,
+      ExpressionAttributeNames: expressionAttributeNames,
+      ExpressionAttributeValues: expressionAttributeValues
+    }));
+  } catch (error) {
+    console.error('Error updating court:', error);
+    throw error;
+  }
+}
+
+export async function searchCourts(options: {
+  city?: string;
+  latitude?: number;
+  longitude?: number;
+  radius?: number; // in kilometers
+  isApproved?: boolean;
+  isActive?: boolean;
+}): Promise<Court[]> {
+  try {
+    let filterExpressions = ['begins_with(pk, :courtPrefix) AND sk = :metadata'];
+    const expressionAttributeValues: any = {
+      ':courtPrefix': 'COURT#',
+      ':metadata': 'METADATA'
+    };
+    const expressionAttributeNames: any = {};
+
+    if (options.isApproved !== undefined) {
+      filterExpressions.push('isApproved = :isApproved');
+      expressionAttributeValues[':isApproved'] = options.isApproved;
+    }
+
+    if (options.isActive !== undefined) {
+      filterExpressions.push('isActive = :isActive');
+      expressionAttributeValues[':isActive'] = options.isActive;
+    }
+
+    if (options.city) {
+      filterExpressions.push('contains(#city, :city)');
+      expressionAttributeNames['#city'] = 'city';
+      expressionAttributeValues[':city'] = options.city;
+    }
+
+    const result = await ddb.send(new ScanCommand({
+      TableName: TABLE_NAME,
+      FilterExpression: filterExpressions.join(' AND '),
+      ExpressionAttributeNames: Object.keys(expressionAttributeNames).length > 0 ? expressionAttributeNames : undefined,
+      ExpressionAttributeValues: expressionAttributeValues
+    }));
+
+    let courts = result.Items as Court[] || [];
+
+    // Filter by distance if coordinates provided
+    if (options.latitude && options.longitude && options.radius) {
+      courts = courts.filter(court => {
+        const distance = calculateDistance(
+          options.latitude!,
+          options.longitude!,
+          court.latitude,
+          court.longitude
+        );
+        return distance <= options.radius!;
+      });
+    }
+
+    return courts.sort((a, b) => a.name.localeCompare(b.name));
+  } catch (error) {
+    console.error('Error searching courts:', error);
+    throw error;
+  }
+}
+
+export async function getAllCourts(isApproved: boolean = true): Promise<Court[]> {
+  try {
+    const result = await ddb.send(new ScanCommand({
+      TableName: TABLE_NAME,
+      FilterExpression: 'begins_with(pk, :courtPrefix) AND sk = :metadata AND isApproved = :isApproved AND isActive = :isActive',
+      ExpressionAttributeValues: {
+        ':courtPrefix': 'COURT#',
+        ':metadata': 'METADATA',
+        ':isApproved': isApproved,
+        ':isActive': true
+      }
+    }));
+
+    return (result.Items as Court[] || []).sort((a, b) => a.name.localeCompare(b.name));
+  } catch (error) {
+    console.error('Error getting all courts:', error);
+    throw error;
+  }
+}
+
+export async function getCourtsByUser(userId: string): Promise<Court[]> {
+  try {
+    const result = await ddb.send(new QueryCommand({
+      TableName: TABLE_NAME,
+      IndexName: 'GSI2', // Assuming GSI2 is on gsi2pk, gsi2sk
+      KeyConditionExpression: 'gsi2pk = :userPk',
+      FilterExpression: 'sk = :metadata',
+      ExpressionAttributeValues: {
+        ':userPk': `USER#${userId}`,
+        ':metadata': 'METADATA'
+      }
+    }));
+
+    return result.Items as Court[] || [];
+  } catch (error) {
+    console.error('Error getting courts by user:', error);
+    throw error;
+  }
+}
+
+// Helper function to calculate distance between two points using Haversine formula
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371; // Earth's radius in kilometers
+  const dLat = toRadians(lat2 - lat1);
+  const dLon = toRadians(lon2 - lon1);
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+function toRadians(degrees: number): number {
+  return degrees * (Math.PI / 180);
 }
 
 // Query user's games

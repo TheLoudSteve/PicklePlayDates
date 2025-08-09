@@ -35,6 +35,7 @@ export function PlayerProfileModal({ isOpen, onClose, userId }: PlayerProfileMod
         name: 'Player Name',
         phone: '+15551234567',
         dupr: '3.5 to 4',
+        role: 'user',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       })

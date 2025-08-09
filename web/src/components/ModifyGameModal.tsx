@@ -26,7 +26,7 @@ export function ModifyGameModal({ isOpen, onClose, game, onGameModified }: Modif
     if (game) {
       setFormData({
         datetimeUTC: game.datetimeUTC.slice(0, 16), // Format for datetime-local input
-        locationId: game.locationId,
+        locationId: game.courtName, // Temporary fix - showing court name instead of ID
         minPlayers: game.minPlayers,
         maxPlayers: game.maxPlayers
       })
@@ -45,7 +45,7 @@ export function ModifyGameModal({ isOpen, onClose, game, onGameModified }: Modif
       
       await apiClient.updateGame(game.gameId, {
         datetimeUTC,
-        locationId: formData.locationId,
+        // Note: Court modification not implemented yet - keeping original court
         minPlayers: formData.minPlayers,
         maxPlayers: formData.maxPlayers
       })

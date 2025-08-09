@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { apiClient, CreateGameRequest } from '@/lib/api'
+import { useState, useEffect } from 'react'
+import { apiClient, CreateGameRequest, Court } from '@/lib/api'
 
 interface CreateGameModalProps {
   isOpen: boolean
@@ -13,12 +13,83 @@ export function CreateGameModal({ isOpen, onClose, onGameCreated }: CreateGameMo
   const [formData, setFormData] = useState({
     date: '',
     time: '',
-    locationId: '',
+    courtId: '',
     minPlayers: 4,
     maxPlayers: 6
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [courts, setCourts] = useState<Court[]>([])
+  const [isLoadingCourts, setIsLoadingCourts] = useState(false)
+  const [searchCity, setSearchCity] = useState('')
+  const [userLocation, setUserLocation] = useState<{latitude: number, longitude: number} | null>(null)
+
+  // Load courts when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      loadCourts()
+    }
+  }, [isOpen])
+
+  const loadCourts = async (searchParams?: { city?: string, latitude?: number, longitude?: number, radius?: number }) => {
+    setIsLoadingCourts(true)
+    try {
+      const response = await apiClient.searchCourts(searchParams)
+      setCourts(response.courts)
+    } catch (err) {
+      console.error('Failed to load courts:', err)
+      setError('Failed to load courts')
+    } finally {
+      setIsLoadingCourts(false)
+    }
+  }
+
+  const getCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setError('Geolocation is not supported by this browser')
+      return
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const location = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude
+        }
+        setUserLocation(location)
+        loadCourts({ latitude: location.latitude, longitude: location.longitude, radius: 50 }) // 50km radius
+      },
+      (error) => {
+        setError('Unable to get your location: ' + error.message)
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 600000 }
+    )
+  }
+
+  const searchByCity = () => {
+    if (searchCity.trim()) {
+      loadCourts({ city: searchCity.trim() })
+    } else {
+      loadCourts()
+    }
+  }
+
+  // Calculate distance between two points using Haversine formula
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+    const R = 6371 // Earth's radius in kilometers
+    const dLat = toRadians(lat2 - lat1)
+    const dLon = toRadians(lon2 - lon1)
+    const a = 
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2)
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+    return R * c
+  }
+
+  const toRadians = (degrees: number): number => {
+    return degrees * (Math.PI / 180)
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -31,7 +102,7 @@ export function CreateGameModal({ isOpen, onClose, onGameCreated }: CreateGameMo
 
       const gameRequest: CreateGameRequest = {
         datetimeUTC,
-        locationId: formData.locationId,
+        courtId: formData.courtId,
         minPlayers: formData.minPlayers,
         maxPlayers: formData.maxPlayers
       }
@@ -42,7 +113,7 @@ export function CreateGameModal({ isOpen, onClose, onGameCreated }: CreateGameMo
       setFormData({
         date: '',
         time: '',
-        locationId: '',
+        courtId: '',
         minPlayers: 4,
         maxPlayers: 6
       })
@@ -59,7 +130,7 @@ export function CreateGameModal({ isOpen, onClose, onGameCreated }: CreateGameMo
           const datetimeUTC = new Date(`${formData.date}T${formData.time}`).toISOString()
           const retryGameRequest: CreateGameRequest = {
             datetimeUTC,
-            locationId: formData.locationId,
+            courtId: formData.courtId,
             minPlayers: formData.minPlayers,
             maxPlayers: formData.maxPlayers
           }
@@ -71,7 +142,7 @@ export function CreateGameModal({ isOpen, onClose, onGameCreated }: CreateGameMo
           setFormData({
             date: '',
             time: '',
-            locationId: '',
+            courtId: '',
             minPlayers: 4,
             maxPlayers: 6
           })
@@ -168,27 +239,77 @@ export function CreateGameModal({ isOpen, onClose, onGameCreated }: CreateGameMo
               )}
             </div>
 
-            {/* Location */}
+            {/* Court Selection */}
             <div>
-              <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-1">
-                Location/Court *
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Court *
               </label>
+              
+              {/* Court Search */}
+              <div className="mb-3 space-y-2">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Search by city..."
+                    value={searchCity}
+                    onChange={(e) => setSearchCity(e.target.value)}
+                    className="input flex-1"
+                  />
+                  <button
+                    type="button"
+                    onClick={searchByCity}
+                    disabled={isLoadingCourts}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    Search
+                  </button>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={getCurrentLocation}
+                    disabled={isLoadingCourts}
+                    className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+                  >
+                    Near Me
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => loadCourts()}
+                    disabled={isLoadingCourts}
+                    className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50"
+                  >
+                    All Courts
+                  </button>
+                </div>
+              </div>
+
+              {/* Court Selection */}
               <select
-                id="location"
                 required
-                value={formData.locationId}
-                onChange={(e) => handleChange('locationId', e.target.value)}
+                value={formData.courtId}
+                onChange={(e) => handleChange('courtId', e.target.value)}
                 className="input w-full"
+                disabled={isLoadingCourts}
               >
-                <option value="">Select a location...</option>
-                <option value="central-park-courts">Central Park Courts</option>
-                <option value="riverside-rec-center">Riverside Recreation Center</option>
-                <option value="community-sports-complex">Community Sports Complex</option>
-                <option value="westside-tennis-club">Westside Tennis Club</option>
-                <option value="downtown-athletic-club">Downtown Athletic Club</option>
-                <option value="lakefront-courts">Lakefront Courts</option>
-                <option value="other">Other (specify in game details)</option>
+                <option value="">
+                  {isLoadingCourts ? 'Loading courts...' : 'Select a court...'}
+                </option>
+                {courts.map(court => (
+                  <option key={court.courtId} value={court.courtId}>
+                    {court.name} - {court.city}, {court.state}
+                    {userLocation && court.latitude && court.longitude && (
+                      ` (${calculateDistance(userLocation.latitude, userLocation.longitude, court.latitude, court.longitude).toFixed(1)} km away)`
+                    )}
+                  </option>
+                ))}
               </select>
+              
+              {courts.length === 0 && !isLoadingCourts && (
+                <p className="text-sm text-gray-500 mt-1">
+                  No courts found. Try a different search or submit a new court.
+                </p>
+              )}
             </div>
 
             {/* Player Count */}
@@ -246,7 +367,7 @@ export function CreateGameModal({ isOpen, onClose, onGameCreated }: CreateGameMo
               <button
                 type="submit"
                 className="flex-1 btn btn-primary"
-                disabled={isSubmitting || !formData.date || !formData.time || !formData.locationId}
+                disabled={isSubmitting || !formData.date || !formData.time || !formData.courtId}
               >
                 {isSubmitting ? 'Creating...' : 'Create Game'}
               </button>

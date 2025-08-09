@@ -104,7 +104,7 @@ async function sendGameFullNotification(game: Game): Promise<void> {
     
     Game Details:
     - Date & Time: ${new Date(game.datetimeUTC).toLocaleString()}
-    - Location: ${game.locationId}
+    - Location: ${game.courtName}
     - Players: ${game.currentPlayers}/${game.maxPlayers}
     
     Get ready to play!
@@ -122,7 +122,7 @@ async function sendGameFullNotification(game: Game): Promise<void> {
         gameId: game.gameId,
         organizerId: game.organizerId,
         datetime: game.datetimeUTC,
-        location: game.locationId,
+        location: game.courtName,
         timestamp: new Date().toISOString(),
       }),
       Subject: subject,
@@ -145,7 +145,7 @@ async function sendGameCancelledNotification(game: Game): Promise<void> {
     
     Game Details:
     - Date & Time: ${new Date(game.datetimeUTC).toLocaleString()}
-    - Location: ${game.locationId}
+    - Location: ${game.courtName}
     
     Please check the app for other available games.
     
@@ -162,7 +162,7 @@ async function sendGameCancelledNotification(game: Game): Promise<void> {
         gameId: game.gameId,
         organizerId: game.organizerId,
         datetime: game.datetimeUTC,
-        location: game.locationId,
+        location: game.courtName,
         timestamp: new Date().toISOString(),
       }),
       Subject: subject,

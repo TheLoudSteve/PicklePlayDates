@@ -113,9 +113,12 @@ export function ViewGameDetailsModal({ isOpen, onClose, gameId }: ViewGameDetail
               {/* Game Info */}
               <div className="bg-gray-50 rounded-lg p-4">
                 <div className="flex items-center space-x-3 mb-3">
-                  <h3 className="text-lg font-medium text-gray-900">
-                    {game.locationId}
-                  </h3>
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900">
+                      {game.courtName}
+                    </h3>
+                    <p className="text-sm text-gray-600">{game.courtAddress}</p>
+                  </div>
                   <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(game.status)}`}>
                     {game.status}
                   </span>

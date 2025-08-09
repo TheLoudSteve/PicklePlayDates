@@ -38,6 +38,7 @@ export const handler = async (
       userId,
       email,
       name: fullName,
+      role: 'user', // Default role
       createdAt: now,
       updatedAt: now,
     };

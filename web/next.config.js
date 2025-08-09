@@ -14,9 +14,9 @@ const nextConfig = {
     unoptimized: true,
   },
   env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'https://0vaxhqqbx7.execute-api.us-west-2.amazonaws.com/dev',
-    NEXT_PUBLIC_USER_POOL_ID: process.env.NEXT_PUBLIC_USER_POOL_ID || 'us-west-2_3RS1waE6E',
-    NEXT_PUBLIC_USER_POOL_CLIENT_ID: process.env.NEXT_PUBLIC_USER_POOL_CLIENT_ID || '1mmjrmgann6sk4jorkdfhpfdm7',
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'https://9vduzksk81.execute-api.us-west-2.amazonaws.com/dev/',
+    NEXT_PUBLIC_USER_POOL_ID: process.env.NEXT_PUBLIC_USER_POOL_ID || 'us-west-2_nxJAslgC2',
+    NEXT_PUBLIC_USER_POOL_CLIENT_ID: process.env.NEXT_PUBLIC_USER_POOL_CLIENT_ID || 'it72qbeabqlqmqkr3c06mhshi',
     NEXT_PUBLIC_USER_POOL_DOMAIN: process.env.NEXT_PUBLIC_USER_POOL_DOMAIN || 'pickle-play-dates-dev-916259710192.auth.us-west-2.amazoncognito.com',
   },
 };

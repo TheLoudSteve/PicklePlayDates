@@ -7,6 +7,8 @@ import { CreateGameModal } from './CreateGameModal'
 import { ModifyGameModal } from './ModifyGameModal'
 import { ViewGameDetailsModal } from './ViewGameDetailsModal'
 import { UserProfileModal } from './UserProfileModal'
+import CreateCourtModal from './CreateCourtModal'
+import { AdminCourtManagement } from './AdminCourtManagement'
 import { LoadingSpinner } from './LoadingSpinner'
 
 export function Dashboard() {
@@ -20,6 +22,9 @@ export function Dashboard() {
   const [isViewDetailsModalOpen, setIsViewDetailsModalOpen] = useState(false)
   const [selectedGameId, setSelectedGameId] = useState<string | null>(null)
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
+  const [isCourtModalOpen, setIsCourtModalOpen] = useState(false)
+  const [isAdminModalOpen, setIsAdminModalOpen] = useState(false)
+  const [userProfile, setUserProfile] = useState<any>(null)
 
   // Get current user ID
   const getCurrentUserId = (): string | null => {
@@ -45,6 +50,21 @@ export function Dashboard() {
   useEffect(() => {
     loadGames()
   }, [activeTab])
+
+  useEffect(() => {
+    if (user) {
+      loadUserProfile()
+    }
+  }, [user])
+
+  const loadUserProfile = async () => {
+    try {
+      const profile = await apiClient.getCurrentUserProfile()
+      setUserProfile(profile)
+    } catch (error) {
+      console.error('Failed to load user profile:', error)
+    }
+  }
 
   const loadGames = async () => {
     try {
@@ -138,6 +158,20 @@ export function Dashboard() {
               <span className="text-sm text-gray-700">
                 {user?.signInDetails?.loginId}
               </span>
+              <button
+                onClick={() => setIsCourtModalOpen(true)}
+                className="btn btn-secondary text-sm"
+              >
+                Submit Court
+              </button>
+              {userProfile?.role === 'admin' && (
+                <button
+                  onClick={() => setIsAdminModalOpen(true)}
+                  className="btn btn-primary text-sm bg-red-600 hover:bg-red-700 text-white"
+                >
+                  Admin
+                </button>
+              )}
               <button
                 onClick={() => setIsProfileModalOpen(true)}
                 className="btn btn-secondary text-sm"
@@ -251,7 +285,7 @@ export function Dashboard() {
                     <div className="flex-1">
                       <div className="flex items-center space-x-3">
                         <h3 className="text-lg font-medium text-gray-900">
-                          {game.locationId}
+                          {game.courtName}
                         </h3>
                         <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(game.status)}`}>
                           {game.status}
@@ -355,21 +389,39 @@ export function Dashboard() {
         gameId={selectedGameId}
       />
 
-      {/* User Profile Modal */}
-      <UserProfileModal
-        isOpen={isProfileModalOpen || needsProfileCompletion}
-        onClose={() => {
-          setIsProfileModalOpen(false)
-          if (needsProfileCompletion) {
+              {/* User Profile Modal */}
+        <UserProfileModal
+          isOpen={isProfileModalOpen || needsProfileCompletion}
+          onClose={() => {
+            setIsProfileModalOpen(false)
+            if (needsProfileCompletion) {
+              setNeedsProfileCompletion(false)
+            }
+          }}
+          onProfileUpdated={() => {
+            loadGames()
             setNeedsProfileCompletion(false)
-          }
-        }}
-        onProfileUpdated={() => {
-          loadGames()
-          setNeedsProfileCompletion(false)
-        }}
-        isInitialSetup={needsProfileCompletion}
-      />
-    </div>
-  )
-} 
+          }}
+          isInitialSetup={needsProfileCompletion}
+        />
+
+        {/* Create Court Modal */}
+        <CreateCourtModal
+          isOpen={isCourtModalOpen}
+          onClose={() => setIsCourtModalOpen(false)}
+          onCourtCreated={() => {
+            setIsCourtModalOpen(false)
+            // Court was submitted for approval
+          }}
+        />
+
+        {/* Admin Court Management Modal */}
+        {userProfile?.role === 'admin' && (
+          <AdminCourtManagement
+            isOpen={isAdminModalOpen}
+            onClose={() => setIsAdminModalOpen(false)}
+          />
+        )}
+      </div>
+    )
+  } 
