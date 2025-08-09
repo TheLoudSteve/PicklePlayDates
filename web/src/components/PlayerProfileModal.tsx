@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { apiClient, UserProfile } from '@/lib/api'
+import { formatDUPRLevel, getDUPRColor, type DUPRLevel } from '@/lib/dupr'
 
 interface PlayerProfileModalProps {
   isOpen: boolean
@@ -47,17 +48,7 @@ export function PlayerProfileModal({ isOpen, onClose, userId }: PlayerProfileMod
     }
   }
 
-  const getDuprColor = (dupr?: string) => {
-    if (!dupr) return 'text-gray-500'
-    switch (dupr) {
-      case 'Below 3': return 'text-blue-600'
-      case '3 to 3.5': return 'text-green-600'
-      case '3.5 to 4': return 'text-yellow-600'
-      case '4 to 4.5': return 'text-orange-600'
-      case 'Above 4.5': return 'text-red-600'
-      default: return 'text-gray-500'
-    }
-  }
+
 
   const formatPhoneForDisplay = (e164Phone?: string) => {
     if (!e164Phone) return 'Not provided'
@@ -107,8 +98,8 @@ export function PlayerProfileModal({ isOpen, onClose, userId }: PlayerProfileMod
               {profile.dupr && (
                 <div className="bg-gray-50 rounded-lg p-4 text-center">
                   <div className="text-sm text-gray-500 mb-1">DUPR Rating</div>
-                  <div className={`text-lg font-semibold ${getDuprColor(profile.dupr)}`}>
-                    {profile.dupr}
+                  <div className={`text-lg font-semibold ${getDUPRColor(profile.dupr as DUPRLevel)}`}>
+                    {formatDUPRLevel(profile.dupr as DUPRLevel)}
                   </div>
                 </div>
               )}

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { apiClient, Game, Player } from '@/lib/api'
+import { DUPR_LEVELS, formatDUPRLevel, type DUPRLevel } from '@/lib/dupr'
 
 interface ModifyGameModalProps {
   isOpen: boolean
@@ -19,7 +20,9 @@ export function ModifyGameModal({ isOpen, onClose, game, onGameModified }: Modif
     datetimeUTC: '',
     locationId: '',
     minPlayers: 4,
-    maxPlayers: 6
+    maxPlayers: 6,
+    minDUPR: '',
+    maxDUPR: ''
   })
 
   useEffect(() => {
@@ -28,10 +31,57 @@ export function ModifyGameModal({ isOpen, onClose, game, onGameModified }: Modif
         datetimeUTC: game.datetimeUTC.slice(0, 16), // Format for datetime-local input
         locationId: game.courtName, // Temporary fix - showing court name instead of ID
         minPlayers: game.minPlayers,
-        maxPlayers: game.maxPlayers
+        maxPlayers: game.maxPlayers,
+        minDUPR: game.minDUPR || '',
+        maxDUPR: game.maxDUPR || ''
       })
     }
   }, [game])
+
+  const handleChange = (field: string, value: string | number) => {
+    setFormData(prev => {
+      const newData = { ...prev, [field]: value }
+      
+      // Reset Max DUPR if it's now invalid based on new Min DUPR
+      if (field === 'minDUPR' && value && newData.maxDUPR) {
+        const minIndex = DUPR_LEVELS.indexOf(value as DUPRLevel)
+        const maxIndex = DUPR_LEVELS.indexOf(newData.maxDUPR as DUPRLevel)
+        if (minIndex > maxIndex) {
+          newData.maxDUPR = ''
+        }
+      }
+      
+      // Reset Min DUPR if it's now invalid based on new Max DUPR
+      if (field === 'maxDUPR' && value && newData.minDUPR) {
+        const minIndex = DUPR_LEVELS.indexOf(newData.minDUPR as DUPRLevel)
+        const maxIndex = DUPR_LEVELS.indexOf(value as DUPRLevel)
+        if (minIndex > maxIndex) {
+          newData.minDUPR = ''
+        }
+      }
+      
+      return newData
+    })
+  }
+
+  // Helper function to get available DUPR options
+  const getAvailableDuprOptions = (type: 'min' | 'max') => {
+    if (type === 'min') {
+      // For min DUPR, filter out options that are higher than the selected max DUPR
+      if (formData.maxDUPR) {
+        const maxIndex = DUPR_LEVELS.indexOf(formData.maxDUPR as DUPRLevel)
+        return DUPR_LEVELS.slice(0, maxIndex + 1)
+      }
+      return DUPR_LEVELS
+    } else {
+      // For max DUPR, filter out options that are lower than the selected min DUPR
+      if (formData.minDUPR) {
+        const minIndex = DUPR_LEVELS.indexOf(formData.minDUPR as DUPRLevel)
+        return DUPR_LEVELS.slice(minIndex)
+      }
+      return DUPR_LEVELS
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -47,7 +97,9 @@ export function ModifyGameModal({ isOpen, onClose, game, onGameModified }: Modif
         datetimeUTC,
         // Note: Court modification not implemented yet - keeping original court
         minPlayers: formData.minPlayers,
-        maxPlayers: formData.maxPlayers
+        maxPlayers: formData.maxPlayers,
+        ...(formData.minDUPR && { minDUPR: formData.minDUPR as DUPRLevel }),
+        ...(formData.maxDUPR && { maxDUPR: formData.maxDUPR as DUPRLevel })
       })
       
       onGameModified()
@@ -158,7 +210,7 @@ export function ModifyGameModal({ isOpen, onClose, game, onGameModified }: Modif
                   type="datetime-local"
                   id="datetime"
                   value={formData.datetimeUTC}
-                  onChange={(e) => setFormData({ ...formData, datetimeUTC: e.target.value })}
+                  onChange={(e) => handleChange('datetimeUTC', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   required
                 />
@@ -172,7 +224,7 @@ export function ModifyGameModal({ isOpen, onClose, game, onGameModified }: Modif
                   type="text"
                   id="location"
                   value={formData.locationId}
-                  onChange={(e) => setFormData({ ...formData, locationId: e.target.value })}
+                  onChange={(e) => handleChange('locationId', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   placeholder="e.g., Central Park Courts"
                   required
@@ -190,7 +242,7 @@ export function ModifyGameModal({ isOpen, onClose, game, onGameModified }: Modif
                     min="2"
                     max="12"
                     value={formData.minPlayers}
-                    onChange={(e) => setFormData({ ...formData, minPlayers: parseInt(e.target.value) })}
+                    onChange={(e) => handleChange('minPlayers', parseInt(e.target.value))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     required
                   />
@@ -205,11 +257,56 @@ export function ModifyGameModal({ isOpen, onClose, game, onGameModified }: Modif
                     min="2"
                     max="12"
                     value={formData.maxPlayers}
-                    onChange={(e) => setFormData({ ...formData, maxPlayers: parseInt(e.target.value) })}
+                    onChange={(e) => handleChange('maxPlayers', parseInt(e.target.value))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     required
                   />
                 </div>
+              </div>
+
+              {/* DUPR Requirements */}
+              <div className="flex space-x-4">
+                <div className="flex-1">
+                  <label htmlFor="minDUPR" className="block text-sm font-medium text-gray-700 mb-1">
+                    Minimum DUPR
+                  </label>
+                  <select
+                    id="minDUPR"
+                    value={formData.minDUPR}
+                    onChange={(e) => handleChange('minDUPR', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  >
+                    <option value="">No minimum</option>
+                    {getAvailableDuprOptions('min').map(level => (
+                      <option key={level} value={level}>
+                        {formatDUPRLevel(level)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex-1">
+                  <label htmlFor="maxDUPR" className="block text-sm font-medium text-gray-700 mb-1">
+                    Maximum DUPR
+                  </label>
+                  <select
+                    id="maxDUPR"
+                    value={formData.maxDUPR}
+                    onChange={(e) => handleChange('maxDUPR', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  >
+                    <option value="">No maximum</option>
+                    {getAvailableDuprOptions('max').map(level => (
+                      <option key={level} value={level}>
+                        {formatDUPRLevel(level)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-md">
+                <strong>Note:</strong> Players outside the DUPR range will not be able to join this game.
               </div>
 
               <div className="flex space-x-3 pt-4">

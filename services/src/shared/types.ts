@@ -15,6 +15,8 @@ export interface Game {
   status: GameStatus;
   createdAt: string;
   updatedAt: string;
+  minDUPR?: DUPRLevel;
+  maxDUPR?: DUPRLevel;
   gsi1pk?: string; // For GSI queries by court
   gsi1sk?: string;
   gsi2pk?: string; // For GSI queries by user
@@ -129,6 +131,8 @@ export interface CreateGameRequest {
   courtId: string;
   minPlayers?: number;
   maxPlayers?: number;
+  minDUPR?: DUPRLevel;
+  maxDUPR?: DUPRLevel;
 }
 
 export interface UpdateUserProfileRequest {

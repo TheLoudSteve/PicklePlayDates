@@ -62,6 +62,27 @@ export const handler = async (
       });
     }
 
+    // Validate DUPR range if provided
+    const validDuprLevels = ['Below 3', '3 to 3.5', '3.5 to 4', '4 to 4.5', 'Above 4.5'];
+    if (body.minDUPR && !validDuprLevels.includes(body.minDUPR)) {
+      validationErrors.push({ field: 'minDUPR', message: 'Invalid minimum DUPR level' });
+    }
+    if (body.maxDUPR && !validDuprLevels.includes(body.maxDUPR)) {
+      validationErrors.push({ field: 'maxDUPR', message: 'Invalid maximum DUPR level' });
+    }
+
+    // Validate DUPR range logic
+    if (body.minDUPR && body.maxDUPR) {
+      const minIndex = validDuprLevels.indexOf(body.minDUPR);
+      const maxIndex = validDuprLevels.indexOf(body.maxDUPR);
+      if (minIndex > maxIndex) {
+        validationErrors.push({
+          field: 'maxDUPR',
+          message: `Maximum DUPR (${body.maxDUPR}) cannot be lower than minimum DUPR (${body.minDUPR}). Please adjust your DUPR range.`
+        });
+      }
+    }
+
     if (validationErrors.length > 0) {
       return createErrorResponse(400, 'Validation failed', validationErrors);
     }
@@ -75,6 +96,8 @@ export const handler = async (
     if (body.locationId) updates.locationId = body.locationId;
     if (body.minPlayers) updates.minPlayers = body.minPlayers;
     if (body.maxPlayers) updates.maxPlayers = body.maxPlayers;
+    if (body.minDUPR !== undefined) updates.minDUPR = body.minDUPR || null;
+    if (body.maxDUPR !== undefined) updates.maxDUPR = body.maxDUPR || null;
 
     // Update the game
     await updateGame(gameId, updates);

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { apiClient, CreateGameRequest, Court } from '@/lib/api'
+import { DUPR_LEVELS, formatDUPRLevel, type DUPRLevel } from '@/lib/dupr'
 
 interface CreateGameModalProps {
   isOpen: boolean
@@ -15,7 +16,9 @@ export function CreateGameModal({ isOpen, onClose, onGameCreated }: CreateGameMo
     time: '',
     courtId: '',
     minPlayers: 4,
-    maxPlayers: 6
+    maxPlayers: 6,
+    minDUPR: '',
+    maxDUPR: ''
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -91,6 +94,26 @@ export function CreateGameModal({ isOpen, onClose, onGameCreated }: CreateGameMo
     return degrees * (Math.PI / 180)
   }
 
+  // Format distance based on user's locale
+  const formatDistance = (distanceInKm: number): string => {
+    // Detect if user is in a country that uses miles (primarily US, also UK, Myanmar, Liberia)
+    const locale = navigator.language || 'en-US'
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || ''
+    
+    // Check for US-based locales and timezones
+    const useMiles = locale.startsWith('en-US') || 
+                    timeZone.startsWith('America/') ||
+                    locale.startsWith('en-GB') || 
+                    locale === 'my' || locale === 'lr'
+    
+    if (useMiles) {
+      const distanceInMiles = distanceInKm * 0.621371
+      return `${distanceInMiles.toFixed(1)} mi away`
+    } else {
+      return `${distanceInKm.toFixed(1)} km away`
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
@@ -104,7 +127,9 @@ export function CreateGameModal({ isOpen, onClose, onGameCreated }: CreateGameMo
         datetimeUTC,
         courtId: formData.courtId,
         minPlayers: formData.minPlayers,
-        maxPlayers: formData.maxPlayers
+        maxPlayers: formData.maxPlayers,
+        ...(formData.minDUPR && { minDUPR: formData.minDUPR as 'Below 3' | '3 to 3.5' | '3.5 to 4' | '4 to 4.5' | 'Above 4.5' }),
+        ...(formData.maxDUPR && { maxDUPR: formData.maxDUPR as 'Below 3' | '3 to 3.5' | '3.5 to 4' | '4 to 4.5' | 'Above 4.5' })
       }
 
       await apiClient.createGame(gameRequest)
@@ -115,7 +140,9 @@ export function CreateGameModal({ isOpen, onClose, onGameCreated }: CreateGameMo
         time: '',
         courtId: '',
         minPlayers: 4,
-        maxPlayers: 6
+        maxPlayers: 6,
+        minDUPR: '',
+        maxDUPR: ''
       })
       
       onGameCreated()
@@ -132,7 +159,9 @@ export function CreateGameModal({ isOpen, onClose, onGameCreated }: CreateGameMo
             datetimeUTC,
             courtId: formData.courtId,
             minPlayers: formData.minPlayers,
-            maxPlayers: formData.maxPlayers
+            maxPlayers: formData.maxPlayers,
+            ...(formData.minDUPR && { minDUPR: formData.minDUPR as 'Below 3' | '3 to 3.5' | '3.5 to 4' | '4 to 4.5' | 'Above 4.5' }),
+            ...(formData.maxDUPR && { maxDUPR: formData.maxDUPR as 'Below 3' | '3 to 3.5' | '3.5 to 4' | '4 to 4.5' | 'Above 4.5' })
           }
           
           // Retry game creation
@@ -144,7 +173,9 @@ export function CreateGameModal({ isOpen, onClose, onGameCreated }: CreateGameMo
             time: '',
             courtId: '',
             minPlayers: 4,
-            maxPlayers: 6
+            maxPlayers: 6,
+            minDUPR: '',
+            maxDUPR: ''
           })
           
           onGameCreated()
@@ -165,7 +196,48 @@ export function CreateGameModal({ isOpen, onClose, onGameCreated }: CreateGameMo
   }
 
   const handleChange = (field: string, value: string | number) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
+    setFormData(prev => {
+      const newData = { ...prev, [field]: value }
+      
+      // Reset Max DUPR if it's now invalid based on new Min DUPR
+      if (field === 'minDUPR' && value && newData.maxDUPR) {
+        const minIndex = DUPR_LEVELS.indexOf(value as DUPRLevel)
+        const maxIndex = DUPR_LEVELS.indexOf(newData.maxDUPR as DUPRLevel)
+        if (minIndex > maxIndex) {
+          newData.maxDUPR = ''
+        }
+      }
+      
+      // Reset Min DUPR if it's now invalid based on new Max DUPR
+      if (field === 'maxDUPR' && value && newData.minDUPR) {
+        const minIndex = DUPR_LEVELS.indexOf(newData.minDUPR as DUPRLevel)
+        const maxIndex = DUPR_LEVELS.indexOf(value as DUPRLevel)
+        if (minIndex > maxIndex) {
+          newData.minDUPR = ''
+        }
+      }
+      
+      return newData
+    })
+  }
+
+  // Helper function to get available DUPR options
+  const getAvailableDuprOptions = (type: 'min' | 'max') => {
+    if (type === 'min') {
+      // For min DUPR, filter out options that are higher than the selected max DUPR
+      if (formData.maxDUPR) {
+        const maxIndex = DUPR_LEVELS.indexOf(formData.maxDUPR as DUPRLevel)
+        return DUPR_LEVELS.slice(0, maxIndex + 1)
+      }
+      return DUPR_LEVELS
+    } else {
+      // For max DUPR, filter out options that are lower than the selected min DUPR
+      if (formData.minDUPR) {
+        const minIndex = DUPR_LEVELS.indexOf(formData.minDUPR as DUPRLevel)
+        return DUPR_LEVELS.slice(minIndex)
+      }
+      return DUPR_LEVELS
+    }
   }
 
   // Get today's date for min date validation
@@ -273,14 +345,6 @@ export function CreateGameModal({ isOpen, onClose, onGameCreated }: CreateGameMo
                   >
                     Near Me
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => loadCourts()}
-                    disabled={isLoadingCourts}
-                    className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50"
-                  >
-                    All Courts
-                  </button>
                 </div>
               </div>
 
@@ -299,7 +363,7 @@ export function CreateGameModal({ isOpen, onClose, onGameCreated }: CreateGameMo
                   <option key={court.courtId} value={court.courtId}>
                     {court.name} - {court.city}, {court.state}
                     {userLocation && court.latitude && court.longitude && (
-                      ` (${calculateDistance(userLocation.latitude, userLocation.longitude, court.latitude, court.longitude).toFixed(1)} km away)`
+                      ` (${formatDistance(calculateDistance(userLocation.latitude, userLocation.longitude, court.latitude, court.longitude))})`
                     )}
                   </option>
                 ))}
@@ -345,6 +409,51 @@ export function CreateGameModal({ isOpen, onClose, onGameCreated }: CreateGameMo
                   ))}
                 </select>
               </div>
+            </div>
+
+            {/* DUPR Requirements */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="minDUPR" className="block text-sm font-medium text-gray-700 mb-1">
+                  Min DUPR (Optional)
+                </label>
+                <select
+                  id="minDUPR"
+                  value={formData.minDUPR}
+                  onChange={(e) => handleChange('minDUPR', e.target.value)}
+                  className="input w-full"
+                >
+                  <option value="">No minimum</option>
+                  {getAvailableDuprOptions('min').map(level => (
+                    <option key={level} value={level}>
+                      {formatDUPRLevel(level)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="maxDUPR" className="block text-sm font-medium text-gray-700 mb-1">
+                  Max DUPR (Optional)
+                </label>
+                <select
+                  id="maxDUPR"
+                  value={formData.maxDUPR}
+                  onChange={(e) => handleChange('maxDUPR', e.target.value)}
+                  className="input w-full"
+                >
+                  <option value="">No maximum</option>
+                  {getAvailableDuprOptions('max').map(level => (
+                    <option key={level} value={level}>
+                      {formatDUPRLevel(level)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            
+            <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-md">
+              <p><strong>DUPR Filters:</strong> Only players with DUPR ratings within your specified range will be able to see and join this game. Leave blank for no restrictions.</p>
             </div>
 
             {/* Info Note */}

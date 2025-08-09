@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/lib/auth'
 import { apiClient, Game } from '@/lib/api'
+import { DUPR_LEVELS, formatDUPRRange, type DUPRLevel } from '@/lib/dupr'
 import { CreateGameModal } from './CreateGameModal'
 import { ModifyGameModal } from './ModifyGameModal'
 import { ViewGameDetailsModal } from './ViewGameDetailsModal'
@@ -66,18 +67,47 @@ export function Dashboard() {
     }
   }
 
+  // Check if user's DUPR matches game requirements
+  const canUserJoinGame = (game: Game): boolean => {
+    if (!userProfile?.dupr) {
+      // If user has no DUPR, they can only join games with no DUPR requirements
+      return !game.minDUPR && !game.maxDUPR
+    }
+
+    const userDupr = userProfile.dupr
+    const userDuprIndex = DUPR_LEVELS.indexOf(userDupr)
+
+    // Check minimum DUPR requirement
+    if (game.minDUPR) {
+      const minDuprIndex = DUPR_LEVELS.indexOf(game.minDUPR)
+      if (userDuprIndex < minDuprIndex) return false
+    }
+
+    // Check maximum DUPR requirement
+    if (game.maxDUPR) {
+      const maxDuprIndex = DUPR_LEVELS.indexOf(game.maxDUPR)
+      if (userDuprIndex > maxDuprIndex) return false
+    }
+
+    return true
+  }
+
   const loadGames = async () => {
     try {
       setIsLoading(true)
       let data
       if (activeTab === 'available') {
         data = await apiClient.getAvailableGames()
+        // Filter games based on DUPR requirements for available games
+        const filteredGames = data.games.filter(game => canUserJoinGame(game))
+        setGames(filteredGames)
       } else if (activeTab === 'my-games') {
         data = await apiClient.getUserSchedule('upcoming')
+        setGames(data.games)
       } else {
         data = await apiClient.getUserSchedule('past')
+        setGames(data.games)
       }
-      setGames(data.games)
     } catch (error) {
       console.error('Error loading games:', error)
     } finally {
@@ -87,6 +117,13 @@ export function Dashboard() {
 
   const handleJoinGame = async (gameId: string) => {
     try {
+      // Find the game to check DUPR requirements
+      const game = games.find(g => g.gameId === gameId)
+      if (game && !canUserJoinGame(game)) {
+        alert('Your DUPR rating does not meet this game\'s requirements.')
+        return
+      }
+
       await apiClient.joinGame(gameId)
       loadGames() // Reload games to update the list
     } catch (error) {
@@ -194,19 +231,36 @@ export function Dashboard() {
         {/* Tabs */}
         <div className="mb-6">
           <div className="sm:hidden">
-            <select
-              value={activeTab}
-              onChange={(e) => setActiveTab(e.target.value as 'available' | 'my-games' | 'past-games')}
-              className="block w-full rounded-md border-gray-300 focus:border-primary-500 focus:ring-primary-500"
-            >
-              <option value="available">Upcoming Games</option>
-              <option value="my-games">My Games</option>
-              <option value="past-games">My Past Games</option>
-            </select>
+            <div className="flex flex-col space-y-3">
+              <button
+                onClick={() => setIsCreateModalOpen(true)}
+                className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+              >
+                <span className="mr-2">+</span>
+                Create Game
+              </button>
+              <select
+                value={activeTab}
+                onChange={(e) => setActiveTab(e.target.value as 'available' | 'my-games' | 'past-games')}
+                className="block w-full rounded-md border-gray-300 focus:border-primary-500 focus:ring-primary-500"
+              >
+                <option value="available">Upcoming Games</option>
+                <option value="my-games">My Games</option>
+                <option value="past-games">My Past Games</option>
+              </select>
+            </div>
           </div>
           <div className="hidden sm:block">
             <div className="border-b border-gray-200">
-              <nav className="-mb-px flex space-x-8">
+              <nav className="-mb-px flex items-center space-x-8">
+                <button
+                  onClick={() => setIsCreateModalOpen(true)}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                >
+                  <span className="mr-2">+</span>
+                  Create Game
+                </button>
+                <div className="border-l border-gray-200 h-8"></div>
                 <button
                   onClick={() => setActiveTab('available')}
                   className={`py-2 px-1 border-b-2 font-medium text-sm ${
@@ -257,21 +311,11 @@ export function Dashboard() {
             </h3>
             <p className="mt-1 text-sm text-gray-500">
               {activeTab === 'available' 
-                ? 'No games available to join. Create a new game to get started.' 
+                ? 'No games available to join. Use the "Create Game" button above to get started.' 
                 : activeTab === 'my-games'
                 ? 'You haven\'t joined any games yet.'
                 : 'No games played yet.'}
             </p>
-            {(activeTab === 'available' || activeTab === 'my-games') && (
-              <div className="mt-6">
-                <button 
-                  onClick={() => setIsCreateModalOpen(true)}
-                  className="btn btn-primary"
-                >
-                  Create New Game
-                </button>
-              </div>
-            )}
           </div>
         ) : (
           <div className="space-y-4">
@@ -300,6 +344,9 @@ export function Dashboard() {
                         <span>📅 {date}</span>
                         <span>🕐 {time}</span>
                         <span>👥 {game.currentPlayers}/{game.maxPlayers} players</span>
+                        <span className="text-blue-600 font-medium">
+                          🏆 {formatDUPRRange(game.minDUPR as DUPRLevel, game.maxDUPR as DUPRLevel)}
+                        </span>
                       </div>
                     </div>
                     <div className="flex space-x-2">

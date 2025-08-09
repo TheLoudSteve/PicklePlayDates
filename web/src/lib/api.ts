@@ -20,6 +20,8 @@ export interface Game {
   createdAt: string
   updatedAt: string
   players?: Player[]
+  minDUPR?: 'Below 3' | '3 to 3.5' | '3.5 to 4' | '4 to 4.5' | 'Above 4.5'
+  maxDUPR?: 'Below 3' | '3 to 3.5' | '3.5 to 4' | '4 to 4.5' | 'Above 4.5'
 }
 
 export interface Player {
@@ -93,6 +95,8 @@ export interface CreateGameRequest {
   courtId: string
   minPlayers?: number
   maxPlayers?: number
+  minDUPR?: 'Below 3' | '3 to 3.5' | '3.5 to 4' | '4 to 4.5' | 'Above 4.5'
+  maxDUPR?: 'Below 3' | '3 to 3.5' | '3.5 to 4' | '4 to 4.5' | 'Above 4.5'
 }
 
 export interface UpdateUserProfileRequest {

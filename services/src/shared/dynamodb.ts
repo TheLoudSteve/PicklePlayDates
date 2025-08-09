@@ -418,7 +418,7 @@ export async function getCourtsByUser(userId: string): Promise<Court[]> {
   try {
     const result = await ddb.send(new QueryCommand({
       TableName: TABLE_NAME,
-      IndexName: 'GSI2', // Assuming GSI2 is on gsi2pk, gsi2sk
+      IndexName: 'gsi2', // GSI2 is on gsi2pk, gsi2sk
       KeyConditionExpression: 'gsi2pk = :userPk',
       FilterExpression: 'sk = :metadata',
       ExpressionAttributeValues: {
@@ -451,30 +451,111 @@ function toRadians(degrees: number): number {
   return degrees * (Math.PI / 180);
 }
 
-// Query user's games
+// Query user's games (both as organizer and as player)
 export async function getUserGames(
   userId: string, 
   range: 'upcoming' | 'past'
 ): Promise<Game[]> {
   try {
-    const now = new Date().toISOString();
-    const indexName = range === 'upcoming' ? 'gsi1' : 'gsi2';
+    console.log(`getUserGames called: userId=${userId}, range=${range}`);
+    const now = new Date();
+    const nowISOString = now.toISOString();
+    console.log(`Current time: ${nowISOString}`);
     
-    const result = await ddb.send(new QueryCommand({
+    // 1. Get ALL games where user is the organizer (no time filtering in DB)
+    const organizerGamesResult = await ddb.send(new QueryCommand({
       TableName: TABLE_NAME,
-      IndexName: indexName,
-      KeyConditionExpression: 'gsi1pk = :pk',
+      IndexName: 'gsi2',
+      KeyConditionExpression: 'gsi2pk = :userPk',
+      FilterExpression: 'sk = :metadata',
       ExpressionAttributeValues: {
-        ':pk': `USER#${userId}`,
-        ':now': now
-      },
-      FilterExpression: range === 'upcoming' 
-        ? 'datetimeUTC > :now' 
-        : 'datetimeUTC <= :now',
-      ScanIndexForward: range === 'upcoming' ? true : false
+        ':userPk': `USER#${userId}`,
+        ':metadata': 'METADATA'
+      }
     }));
     
-    return result.Items as Game[] || [];
+    const allOrganizerGames = organizerGamesResult.Items as Game[] || [];
+    console.log(`Found ${allOrganizerGames.length} organizer games`);
+    
+    // 2. Get games where user is a player (from GamePlayer records)
+    const playerRecordsResult = await ddb.send(new ScanCommand({
+      TableName: TABLE_NAME,
+      FilterExpression: 'sk = :playerSk',
+      ExpressionAttributeValues: {
+        ':playerSk': `PLAYER#${userId}`
+      }
+    }));
+    
+    // Extract game IDs from player records
+    const gameIds = (playerRecordsResult.Items || []).map((item: any) => 
+      item.pk.replace('GAME#', '')
+    );
+    console.log(`Found ${gameIds.length} games where user is a player`);
+    
+    // 3. Get the actual Game records for games where user is a player
+    const allPlayerGames: Game[] = [];
+    for (const gameId of gameIds) {
+      try {
+        const game = await getGame(gameId);
+        if (game) {
+          allPlayerGames.push(game);
+        }
+      } catch (error) {
+        console.error(`Error getting game ${gameId}:`, error);
+        // Continue with other games
+      }
+    }
+    
+    // 4. Combine and deduplicate games
+    const allGames = [...allOrganizerGames];
+    for (const playerGame of allPlayerGames) {
+      if (!allGames.find(g => g.gameId === playerGame.gameId)) {
+        allGames.push(playerGame);
+      }
+    }
+    console.log(`Total games before time filtering: ${allGames.length}`);
+    
+    // 5. Apply time filtering in JavaScript (more reliable)
+    const filteredGames = allGames.filter(game => {
+      try {
+        const gameTime = new Date(game.datetimeUTC);
+        
+        // Check if the date is valid
+        if (isNaN(gameTime.getTime())) {
+          console.log(`Game ${game.gameId}: Invalid datetime '${game.datetimeUTC}' - skipping`);
+          return false;
+        }
+        
+        const gameTimeISO = gameTime.toISOString();
+        console.log(`Game ${game.gameId}: ${gameTimeISO}, range: ${range}`);
+        
+        if (range === 'upcoming') {
+          const isUpcoming = gameTime > now;
+          console.log(`  Is upcoming? ${isUpcoming} (${gameTimeISO} > ${nowISOString})`);
+          return isUpcoming;
+        } else {
+          // For past games: game started more than 2 hours ago
+          const twoHoursAgo = new Date(now.getTime() - (2 * 60 * 60 * 1000));
+          const isPast = gameTime < twoHoursAgo;
+          console.log(`  Is past? ${isPast} (${gameTimeISO} < ${twoHoursAgo.toISOString()})`);
+          return isPast;
+        }
+      } catch (error) {
+        console.log(`Game ${game.gameId}: Error parsing datetime '${game.datetimeUTC}' - ${(error as Error).message} - skipping`);
+        return false;
+      }
+    });
+    
+    console.log(`Games after time filtering: ${filteredGames.length}`);
+    
+    // 6. Sort by datetime
+    filteredGames.sort((a, b) => {
+      const dateA = new Date(a.datetimeUTC).getTime();
+      const dateB = new Date(b.datetimeUTC).getTime();
+      return range === 'upcoming' ? dateA - dateB : dateB - dateA;
+    });
+    
+    return filteredGames;
   } catch (error) {
     console.error('Error getting user games:', error);
     throw error;

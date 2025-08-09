@@ -53,6 +53,27 @@ export const handler = async (
       validationErrors.push({ field: 'maxPlayers', message: 'Max players must be between min players and 8' });
     }
 
+    // Validate DUPR range if provided
+    const validDuprLevels = ['Below 3', '3 to 3.5', '3.5 to 4', '4 to 4.5', 'Above 4.5'];
+    if (body.minDUPR && !validDuprLevels.includes(body.minDUPR)) {
+      validationErrors.push({ field: 'minDUPR', message: 'Invalid minimum DUPR level' });
+    }
+    if (body.maxDUPR && !validDuprLevels.includes(body.maxDUPR)) {
+      validationErrors.push({ field: 'maxDUPR', message: 'Invalid maximum DUPR level' });
+    }
+
+    // Validate DUPR range logic
+    if (body.minDUPR && body.maxDUPR) {
+      const minIndex = validDuprLevels.indexOf(body.minDUPR);
+      const maxIndex = validDuprLevels.indexOf(body.maxDUPR);
+      if (minIndex > maxIndex) {
+        validationErrors.push({ 
+          field: 'maxDUPR', 
+          message: `Maximum DUPR (${body.maxDUPR}) cannot be lower than minimum DUPR (${body.minDUPR}). Please adjust your DUPR range.` 
+        });
+      }
+    }
+
     if (validationErrors.length > 0) {
       return createErrorResponse(422, 'Validation failed', validationErrors);
     }
@@ -94,6 +115,8 @@ export const handler = async (
       status: 'scheduled',
       createdAt: now,
       updatedAt: now,
+      ...(body.minDUPR && { minDUPR: body.minDUPR }),
+      ...(body.maxDUPR && { maxDUPR: body.maxDUPR }),
       gsi1pk: `COURT#${body.courtId}`,
       gsi1sk: `GAME#${body.datetimeUTC}`,
       gsi2pk: `USER#${userId}`,

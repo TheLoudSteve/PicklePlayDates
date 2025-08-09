@@ -69,6 +69,30 @@ export const handler = async (
       return createErrorResponse(404, 'User profile not found');
     }
 
+    // Check DUPR requirements
+    if (game.minDUPR || game.maxDUPR) {
+      if (!userProfile.dupr) {
+        return createErrorResponse(403, 'DUPR rating required to join this game');
+      }
+
+      const duprLevels = ['Below 3', '3 to 3.5', '3.5 to 4', '4 to 4.5', 'Above 4.5'];
+      const userDuprIndex = duprLevels.indexOf(userProfile.dupr);
+
+      if (game.minDUPR) {
+        const minDuprIndex = duprLevels.indexOf(game.minDUPR);
+        if (userDuprIndex < minDuprIndex) {
+          return createErrorResponse(403, `DUPR rating too low for this game (requires ${game.minDUPR} or higher)`);
+        }
+      }
+
+      if (game.maxDUPR) {
+        const maxDuprIndex = duprLevels.indexOf(game.maxDUPR);
+        if (userDuprIndex > maxDuprIndex) {
+          return createErrorResponse(403, `DUPR rating too high for this game (requires ${game.maxDUPR} or lower)`);
+        }
+      }
+    }
+
     // Add player to game
     const now = formatDateForDDB(new Date());
     const newPlayer: GamePlayer = {

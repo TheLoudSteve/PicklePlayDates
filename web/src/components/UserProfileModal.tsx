@@ -10,13 +10,12 @@ interface UserProfileModalProps {
   isInitialSetup?: boolean
 }
 
-const DUPR_OPTIONS = [
-  { value: 'Below 3', label: 'Below 3.0' },
-  { value: '3 to 3.5', label: '3.0 to 3.5' },
-  { value: '3.5 to 4', label: '3.5 to 4.0' },
-  { value: '4 to 4.5', label: '4.0 to 4.5' },
-  { value: 'Above 4.5', label: 'Above 4.5' },
-] as const
+import { DUPR_LEVELS, formatDUPRLevel, type DUPRLevel } from '@/lib/dupr'
+
+const DUPR_OPTIONS = DUPR_LEVELS.map(level => ({
+  value: level,
+  label: formatDUPRLevel(level)
+}))
 
 export function UserProfileModal({ 
   isOpen, 

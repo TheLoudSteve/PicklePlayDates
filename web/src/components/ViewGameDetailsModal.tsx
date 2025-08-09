@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { apiClient, Game, Player } from '@/lib/api'
 import { PlayerProfileModal } from './PlayerProfileModal'
+import { formatDUPRRange, formatDUPRLevel, getDUPRColor, type DUPRLevel } from '@/lib/dupr'
 
 interface ViewGameDetailsModalProps {
   isOpen: boolean
@@ -64,17 +65,7 @@ export function ViewGameDetailsModal({ isOpen, onClose, gameId }: ViewGameDetail
     }
   }
 
-  const getDuprColor = (dupr?: string) => {
-    if (!dupr) return 'text-gray-500'
-    switch (dupr) {
-      case 'Below 3': return 'text-blue-600'
-      case '3 to 3.5': return 'text-green-600'
-      case '3.5 to 4': return 'text-yellow-600'
-      case '4 to 4.5': return 'text-orange-600'
-      case 'Above 4.5': return 'text-red-600'
-      default: return 'text-gray-500'
-    }
-  }
+
 
   const handlePlayerClick = (userId: string) => {
     setSelectedPlayerId(userId)
@@ -141,6 +132,12 @@ export function ViewGameDetailsModal({ isOpen, onClose, gameId }: ViewGameDetail
                     <span className="text-gray-500">📋 Player Range:</span>
                     <div className="font-medium">{game.minPlayers}-{game.maxPlayers} players</div>
                   </div>
+                  <div className="md:col-span-2">
+                    <span className="text-gray-500">🏆 DUPR Requirements:</span>
+                    <div className="font-medium">
+                      {formatDUPRRange(game.minDUPR as DUPRLevel, game.maxDUPR as DUPRLevel)}
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -175,8 +172,8 @@ export function ViewGameDetailsModal({ isOpen, onClose, gameId }: ViewGameDetail
                               <div>Joined: {new Date(player.joinedAt).toLocaleDateString()}</div>
                               <div className="flex items-center space-x-3 mt-1">
                                 {player.dupr && (
-                                  <span className={`font-medium ${getDuprColor(player.dupr)}`}>
-                                    DUPR: {player.dupr}
+                                  <span className={`font-medium ${getDUPRColor(player.dupr as DUPRLevel)}`}>
+                                    DUPR: {formatDUPRLevel(player.dupr as DUPRLevel)}
                                   </span>
                                 )}
                                 <span className="text-xs text-blue-600 font-medium">
