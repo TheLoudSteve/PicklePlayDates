@@ -12,6 +12,8 @@ import * as budgets from 'aws-cdk-lib/aws-budgets';
 import * as ses from 'aws-cdk-lib/aws-ses';
 import * as sns from 'aws-cdk-lib/aws-sns';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
+import * as events from 'aws-cdk-lib/aws-events';
+import * as targets from 'aws-cdk-lib/aws-events-targets';
 import { DynamoEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
 import { Construct } from 'constructs';
 
@@ -245,6 +247,40 @@ export class PicklePlayDatesStack extends cdk.Stack {
               actions: ['sns:Publish'],
               resources: [notificationTopic.topicArn],
             }),
+            new iam.PolicyStatement({
+              effect: iam.Effect.ALLOW,
+              actions: ['sns:Publish'],
+              resources: ['*'], // Allow SMS sending to any phone number
+              conditions: {
+                StringEquals: {
+                  'sns:Protocol': 'sms',
+                },
+              },
+            }),
+          ],
+        }),
+        EventBridgeAccess: new iam.PolicyDocument({
+          statements: [
+            new iam.PolicyStatement({
+              effect: iam.Effect.ALLOW,
+              actions: [
+                'events:PutEvents',
+                'events:DeleteRule',
+                'events:PutRule',
+                'events:PutTargets',
+                'events:RemoveTargets',
+              ],
+              resources: ['*'],
+            }),
+          ],
+        }),
+        LambdaInvokeAccess: new iam.PolicyDocument({
+          statements: [
+            new iam.PolicyStatement({
+              effect: iam.Effect.ALLOW,
+              actions: ['lambda:InvokeFunction'],
+              resources: ['*'], // Restrict to specific functions in production
+            }),
           ],
         }),
       },
@@ -327,6 +363,7 @@ export class PicklePlayDatesStack extends cdk.Stack {
           SES_CONFIGURATION_SET: sesConfigurationSet.configurationSetName,
           SNS_TOPIC_ARN: notificationTopic.topicArn,
           ENVIRONMENT: environment,
+          AWS_ACCOUNT_ID: this.account,
         },
         timeout: cdk.Duration.seconds(30),
         tracing: lambda.Tracing.ACTIVE,
@@ -416,6 +453,18 @@ export class PicklePlayDatesStack extends cdk.Stack {
       `pickle-play-dates-notifications-${environment}`,
       'notifications/index.handler'
     );
+
+    const notificationSchedulerLambda = createLambdaFunction(
+      'NotificationSchedulerFunction',
+      `pickle-play-dates-notification-scheduler-${environment}`,
+      'notification-scheduler/index.handler'
+    );
+
+    // Allow EventBridge to invoke the notification scheduler
+    notificationSchedulerLambda.addPermission('AllowEventBridgeInvoke', {
+      principal: new iam.ServicePrincipal('events.amazonaws.com'),
+      action: 'lambda:InvokeFunction',
+    });
 
     // DynamoDB Stream Event Source
     notificationLambda.addEventSource(

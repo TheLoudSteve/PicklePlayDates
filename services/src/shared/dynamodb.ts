@@ -452,6 +452,7 @@ function toRadians(degrees: number): number {
 }
 
 // Query user's games (both as organizer and as player)
+
 export async function getUserGames(
   userId: string, 
   range: 'upcoming' | 'past'

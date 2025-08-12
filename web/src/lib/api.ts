@@ -31,6 +31,13 @@ export interface Player {
   dupr?: string
 }
 
+export interface NotificationPreferences {
+  emailEnabled: boolean // Email notifications enabled
+  gameReminders: boolean // 24h and 1h before games
+  gameCancellations: boolean // when games you're in get cancelled
+  preferredMethod: 'email' | 'in-app' // for future in-app notifications
+}
+
 export interface UserProfile {
   userId: string
   email: string
@@ -38,6 +45,7 @@ export interface UserProfile {
   phone?: string
   dupr?: 'Below 3' | '3 to 3.5' | '3.5 to 4' | '4 to 4.5' | 'Above 4.5'
   role: 'user' | 'admin'
+  notificationPreferences?: NotificationPreferences
   createdAt: string
   updatedAt: string
 }
@@ -103,6 +111,7 @@ export interface UpdateUserProfileRequest {
   name?: string
   phone?: string
   dupr?: 'Below 3' | '3 to 3.5' | '3.5 to 4' | '4 to 4.5' | 'Above 4.5'
+  notificationPreferences?: NotificationPreferences
 }
 
 class ApiClient {

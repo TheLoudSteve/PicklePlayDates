@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { apiClient, UserProfile, UpdateUserProfileRequest } from '@/lib/api'
+import { apiClient, UserProfile, UpdateUserProfileRequest, NotificationPreferences } from '@/lib/api'
 
 interface UserProfileModalProps {
   isOpen: boolean
@@ -28,7 +28,13 @@ export function UserProfileModal({
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
-    dupr: '' as UpdateUserProfileRequest['dupr'] | ''
+    dupr: '' as UpdateUserProfileRequest['dupr'] | '',
+    notificationPreferences: {
+      emailEnabled: true,
+      gameReminders: true,
+      gameCancellations: true,
+      preferredMethod: 'email' as 'email' | 'in-app'
+    }
   })
 
   useEffect(() => {
@@ -56,7 +62,13 @@ export function UserProfileModal({
       setFormData({
         name: profile.name || '',
         phone: formatPhoneForDisplay(profile.phone),
-        dupr: profile.dupr || ''
+        dupr: profile.dupr || '',
+        notificationPreferences: profile.notificationPreferences || {
+          emailEnabled: true,
+          gameReminders: true,
+          gameCancellations: true,
+          preferredMethod: 'email'
+        }
       })
     } catch (error) {
       console.error('Error loading profile:', error)
@@ -64,7 +76,13 @@ export function UserProfileModal({
       setFormData({
         name: '',
         phone: '',
-        dupr: ''
+        dupr: '',
+        notificationPreferences: {
+          emailEnabled: true,
+          gameReminders: true,
+          gameCancellations: true,
+          preferredMethod: 'email'
+        }
       })
     } finally {
       setIsLoading(false)
@@ -89,6 +107,11 @@ export function UserProfileModal({
         }
       }
       if (formData.dupr) updateData.dupr = formData.dupr
+      
+      // Always update notification preferences if phone number is provided
+      if (formData.phone.trim()) {
+        updateData.notificationPreferences = formData.notificationPreferences
+      }
 
       await apiClient.updateUserProfile(updateData)
       
@@ -210,9 +233,79 @@ export function UserProfileModal({
                 placeholder="(555) 123-4567"
               />
               <p className="mt-1 text-xs text-gray-500">
-                Other players can contact you to coordinate games.
+                Phone number is optional and may be used for court contact purposes.
               </p>
             </div>
+
+            <div className="space-y-4 p-4 bg-blue-50 rounded-lg">
+              <h3 className="text-sm font-medium text-gray-900">Notification Settings</h3>
+              <p className="text-xs text-gray-600">
+                You can receive email notifications for game updates. You can change these preferences anytime.
+              </p>
+                
+                <div className="space-y-3">
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="emailEnabled"
+                      checked={formData.notificationPreferences.emailEnabled}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        notificationPreferences: {
+                          ...formData.notificationPreferences,
+                          emailEnabled: e.target.checked
+                        }
+                      })}
+                      className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                    />
+                    <label htmlFor="emailEnabled" className="ml-2 text-sm text-gray-700">
+                      Enable email notifications
+                    </label>
+                  </div>
+
+                  {formData.notificationPreferences.emailEnabled && (
+                    <>
+                      <div className="flex items-center ml-6">
+                        <input
+                          type="checkbox"
+                          id="gameReminders"
+                          checked={formData.notificationPreferences.gameReminders}
+                          onChange={(e) => setFormData({
+                            ...formData,
+                            notificationPreferences: {
+                              ...formData.notificationPreferences,
+                              gameReminders: e.target.checked
+                            }
+                          })}
+                          className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                        />
+                        <label htmlFor="gameReminders" className="ml-2 text-sm text-gray-600">
+                          Game reminders (24 hours and 1 hour before)
+                        </label>
+                      </div>
+                      
+                      <div className="flex items-center ml-6">
+                        <input
+                          type="checkbox"
+                          id="gameCancellations"
+                          checked={formData.notificationPreferences.gameCancellations}
+                          onChange={(e) => setFormData({
+                            ...formData,
+                            notificationPreferences: {
+                              ...formData.notificationPreferences,
+                              gameCancellations: e.target.checked
+                            }
+                          })}
+                          className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                        />
+                        <label htmlFor="gameCancellations" className="ml-2 text-sm text-gray-600">
+                          Game cancellation alerts
+                        </label>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
 
             <div className="flex space-x-3 pt-4">
               {!isInitialSetup && (

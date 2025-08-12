@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { apiClient, Game, Player } from '@/lib/api'
-import { PlayerProfileModal } from './PlayerProfileModal'
 import { formatDUPRRange, formatDUPRLevel, getDUPRColor, type DUPRLevel } from '@/lib/dupr'
+import { formatDateTimeDetailed } from '@/lib/datetime'
+import { PlayerProfileModal } from './PlayerProfileModal'
 
 interface ViewGameDetailsModalProps {
   isOpen: boolean
@@ -38,22 +39,8 @@ export function ViewGameDetailsModal({ isOpen, onClose, gameId }: ViewGameDetail
     }
   }
 
-  const formatDateTime = (dateTimeUTC: string) => {
-    const date = new Date(dateTimeUTC)
-    return {
-      date: date.toLocaleDateString('en-US', { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-      }),
-      time: date.toLocaleTimeString('en-US', { 
-        hour: '2-digit', 
-        minute: '2-digit',
-        timeZoneName: 'short'
-      })
-    }
-  }
+  // Use standardized datetime formatting
+  const formatDateTime = formatDateTimeDetailed;
 
   const getStatusColor = (status: string) => {
     switch (status) {

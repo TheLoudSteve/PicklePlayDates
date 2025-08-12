@@ -42,8 +42,16 @@ export interface UserProfile {
   phone?: string; // E.164 format
   dupr?: DUPRLevel;
   role: UserRole;
+  notificationPreferences?: NotificationPreferences;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface NotificationPreferences {
+  emailEnabled: boolean; // Email notifications enabled
+  gameReminders: boolean; // 24h and 1h before games
+  gameCancellations: boolean; // when games you're in get cancelled
+  preferredMethod: 'email' | 'in-app'; // for future in-app notifications
 }
 
 export type GameStatus = 'scheduled' | 'closed' | 'cancelled' | 'past';
@@ -139,6 +147,7 @@ export interface UpdateUserProfileRequest {
   name?: string;
   phone?: string;
   dupr?: DUPRLevel;
+  notificationPreferences?: NotificationPreferences;
 }
 
 export interface JWTPayload {

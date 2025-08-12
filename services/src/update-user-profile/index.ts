@@ -49,6 +49,22 @@ export const handler = async (
       }
     }
 
+    if (body.notificationPreferences !== undefined) {
+      const notif = body.notificationPreferences;
+      if (typeof notif.emailEnabled !== 'boolean') {
+        validationErrors.push({ field: 'notificationPreferences.emailEnabled', message: 'emailEnabled must be a boolean' });
+      }
+      if (typeof notif.gameReminders !== 'boolean') {
+        validationErrors.push({ field: 'notificationPreferences.gameReminders', message: 'gameReminders must be a boolean' });
+      }
+      if (typeof notif.gameCancellations !== 'boolean') {
+        validationErrors.push({ field: 'notificationPreferences.gameCancellations', message: 'gameCancellations must be a boolean' });
+      }
+      if (notif.preferredMethod && !['email', 'in-app'].includes(notif.preferredMethod)) {
+        validationErrors.push({ field: 'notificationPreferences.preferredMethod', message: 'preferredMethod must be "email" or "in-app"' });
+      }
+    }
+
     if (validationErrors.length > 0) {
       return createErrorResponse(422, 'Validation failed', validationErrors);
     }
@@ -74,6 +90,10 @@ export const handler = async (
 
     if (body.dupr !== undefined) {
       updates.dupr = body.dupr;
+    }
+
+    if (body.notificationPreferences !== undefined) {
+      updates.notificationPreferences = body.notificationPreferences;
     }
 
     // Update profile

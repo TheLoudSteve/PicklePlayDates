@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { apiClient, Game, Player } from '@/lib/api'
 import { DUPR_LEVELS, formatDUPRLevel, type DUPRLevel } from '@/lib/dupr'
+import { utcToLocalDateTimeInput, localDateTimeInputToUTC } from '@/lib/datetime'
 
 interface ModifyGameModalProps {
   isOpen: boolean
@@ -28,7 +29,7 @@ export function ModifyGameModal({ isOpen, onClose, game, onGameModified }: Modif
   useEffect(() => {
     if (game) {
       setFormData({
-        datetimeUTC: game.datetimeUTC.slice(0, 16), // Format for datetime-local input
+        datetimeUTC: utcToLocalDateTimeInput(game.datetimeUTC),
         locationId: game.courtName, // Temporary fix - showing court name instead of ID
         minPlayers: game.minPlayers,
         maxPlayers: game.maxPlayers,
@@ -90,8 +91,7 @@ export function ModifyGameModal({ isOpen, onClose, game, onGameModified }: Modif
     try {
       setIsLoading(true)
       
-      // Convert back to ISO string
-      const datetimeUTC = new Date(formData.datetimeUTC).toISOString()
+      const datetimeUTC = localDateTimeInputToUTC(formData.datetimeUTC);
       
       await apiClient.updateGame(game.gameId, {
         datetimeUTC,
@@ -201,7 +201,14 @@ export function ModifyGameModal({ isOpen, onClose, game, onGameModified }: Modif
           </div>
 
           {activeTab === 'details' && (
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <>
+              {game.status === 'cancelled' && (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-lg mb-4">
+                  <p className="text-red-700 font-medium">This game has been cancelled</p>
+                  <p className="text-red-600 text-sm mt-1">Cancelled games cannot be modified.</p>
+                </div>
+              )}
+              <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label htmlFor="datetime" className="block text-sm font-medium text-gray-700 mb-1">
                   Date & Time
@@ -212,6 +219,7 @@ export function ModifyGameModal({ isOpen, onClose, game, onGameModified }: Modif
                   value={formData.datetimeUTC}
                   onChange={(e) => handleChange('datetimeUTC', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  disabled={game.status === 'cancelled'}
                   required
                 />
               </div>
@@ -227,6 +235,7 @@ export function ModifyGameModal({ isOpen, onClose, game, onGameModified }: Modif
                   onChange={(e) => handleChange('locationId', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   placeholder="e.g., Central Park Courts"
+                  disabled={game.status === 'cancelled'}
                   required
                 />
               </div>
@@ -244,6 +253,7 @@ export function ModifyGameModal({ isOpen, onClose, game, onGameModified }: Modif
                     value={formData.minPlayers}
                     onChange={(e) => handleChange('minPlayers', parseInt(e.target.value))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    disabled={game.status === 'cancelled'}
                     required
                   />
                 </div>
@@ -259,6 +269,7 @@ export function ModifyGameModal({ isOpen, onClose, game, onGameModified }: Modif
                     value={formData.maxPlayers}
                     onChange={(e) => handleChange('maxPlayers', parseInt(e.target.value))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    disabled={game.status === 'cancelled'}
                     required
                   />
                 </div>
@@ -312,21 +323,24 @@ export function ModifyGameModal({ isOpen, onClose, game, onGameModified }: Modif
               <div className="flex space-x-3 pt-4">
                 <button
                   type="submit"
-                  disabled={isLoading}
-                  className="flex-1 btn btn-primary"
+                  disabled={isLoading || game.status === 'cancelled'}
+                  className={`btn btn-primary ${game.status === 'cancelled' ? 'w-full' : 'flex-1'}`}
                 >
                   {isLoading ? 'Updating...' : 'Update Game'}
                 </button>
-                <button
-                  type="button"
-                  onClick={handleCancelGame}
-                  disabled={isLoading}
-                  className="flex-1 btn btn-danger"
-                >
-                  Cancel Game
-                </button>
+                {game.status !== 'cancelled' && (
+                  <button
+                    type="button"
+                    onClick={handleCancelGame}
+                    disabled={isLoading}
+                    className="flex-1 btn btn-danger"
+                  >
+                    Cancel Game
+                  </button>
+                )}
               </div>
             </form>
+            </>
           )}
 
           {activeTab === 'players' && (
@@ -341,7 +355,7 @@ export function ModifyGameModal({ isOpen, onClose, game, onGameModified }: Modif
                         {player.dupr && ` • DUPR: ${player.dupr}`}
                       </div>
                     </div>
-                    {player.userId !== game.organizerId && (
+                    {player.userId !== game.organizerId && game.status !== 'cancelled' && (
                       <button
                         onClick={() => handleKickPlayer(player.userId)}
                         disabled={isLoading}

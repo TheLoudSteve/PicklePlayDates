@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { apiClient, CreateGameRequest, Court } from '@/lib/api'
 import { DUPR_LEVELS, formatDUPRLevel, type DUPRLevel } from '@/lib/dupr'
+import { localDateTimeToUTC, getTodayLocalDate, getCurrentLocalTime } from '@/lib/datetime'
 
 interface CreateGameModalProps {
   isOpen: boolean
@@ -120,8 +121,8 @@ export function CreateGameModal({ isOpen, onClose, onGameCreated }: CreateGameMo
     setIsSubmitting(true)
 
     try {
-      // Combine date and time into ISO string
-      const datetimeUTC = new Date(`${formData.date}T${formData.time}`).toISOString()
+      // Convert local date and time to UTC
+      const datetimeUTC = localDateTimeToUTC(formData.date, formData.time);
 
       const gameRequest: CreateGameRequest = {
         datetimeUTC,
@@ -240,13 +241,10 @@ export function CreateGameModal({ isOpen, onClose, onGameCreated }: CreateGameMo
     }
   }
 
-  // Get today's date for min date validation
-  const today = new Date().toISOString().split('T')[0]
-  
-  // Get current time for min time validation (if today is selected)
-  const now = new Date()
-  const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
-  const isToday = formData.date === today
+  // Use standardized datetime utilities
+  const today = getTodayLocalDate();
+  const currentTime = getCurrentLocalTime();
+  const isToday = formData.date === today;
 
   if (!isOpen) return null
 

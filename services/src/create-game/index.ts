@@ -1,16 +1,53 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { v4 as uuidv4 } from 'uuid';
+import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 import { 
   createResponse, 
   createErrorResponse, 
   getUserIdFromEvent,
   validateDateTime,
   handleError,
-
   formatDateForDDB 
 } from '../shared/utils';
 import { putGame, getUserProfile, addPlayerToGame, getCourt } from '../shared/dynamodb';
 import { Game, CreateGameRequest, ValidationError, GamePlayer } from '../shared/types';
+
+const lambdaClient = new LambdaClient({});
+
+async function scheduleGameReminders(game: Game): Promise<void> {
+  try {
+    const notificationSchedulerFunctionName = `pickle-play-dates-notification-scheduler-${process.env.ENVIRONMENT}`;
+    
+    const payload = {
+      source: 'game.created',
+      'detail-type': 'Game Created',
+      detail: {
+        eventName: 'INSERT',
+        dynamodb: {
+          NewImage: {
+            pk: { S: game.pk },
+            sk: { S: game.sk },
+            gameId: { S: game.gameId },
+            datetimeUTC: { S: game.datetimeUTC },
+            organizerId: { S: game.organizerId },
+            courtName: { S: game.courtName },
+          }
+        }
+      }
+    };
+
+    await lambdaClient.send(new InvokeCommand({
+      FunctionName: notificationSchedulerFunctionName,
+      InvocationType: 'Event', // Async invocation
+      Payload: new TextEncoder().encode(JSON.stringify(payload)),
+    }));
+
+    console.log(`Scheduled reminders for game ${game.gameId}`);
+  } catch (error) {
+    console.error('Error invoking notification scheduler:', error);
+    throw error;
+  }
+}
 
 export const handler = async (
   event: APIGatewayProxyEvent
@@ -33,8 +70,10 @@ export const handler = async (
     } else {
       const gameTime = new Date(body.datetimeUTC);
       const now = new Date();
-      if (gameTime <= now) {
-        validationErrors.push({ field: 'datetimeUTC', message: 'Game time must be in the future' });
+      // Add a 5-minute buffer to account for processing time and minor timezone issues
+      const bufferTime = new Date(now.getTime() + 5 * 60 * 1000);
+      if (gameTime <= bufferTime) {
+        validationErrors.push({ field: 'datetimeUTC', message: 'Game time must be at least 5 minutes in the future' });
       }
     }
 
@@ -137,6 +176,14 @@ export const handler = async (
     };
 
     await addPlayerToGame(gameId, organizer);
+
+    // Schedule game reminders
+    try {
+      await scheduleGameReminders(game);
+    } catch (error) {
+      console.error('Error scheduling game reminders:', error);
+      // Don't fail the game creation if reminder scheduling fails
+    }
 
     // Note: In real implementation, we'd use a transaction to ensure both operations succeed
     // For simplicity, we're doing separate operations here

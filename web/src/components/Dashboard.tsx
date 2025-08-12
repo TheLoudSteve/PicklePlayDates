@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '@/lib/auth'
 import { apiClient, Game } from '@/lib/api'
 import { DUPR_LEVELS, formatDUPRRange, type DUPRLevel } from '@/lib/dupr'
+import { formatDateTime as formatDateTimeUtil } from '@/lib/datetime'
 import { CreateGameModal } from './CreateGameModal'
 import { ModifyGameModal } from './ModifyGameModal'
 import { ViewGameDetailsModal } from './ViewGameDetailsModal'
@@ -162,13 +163,8 @@ export function Dashboard() {
     setSelectedGameId(null)
   }
 
-  const formatDateTime = (dateTimeUTC: string) => {
-    const date = new Date(dateTimeUTC)
-    return {
-      date: date.toLocaleDateString(),
-      time: date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    }
-  }
+  // Use standardized datetime formatting
+  const formatDateTime = formatDateTimeUtil;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -324,11 +320,11 @@ export function Dashboard() {
               const relationship = getUserGameRelationship(game)
               
               return (
-                <div key={game.gameId} className="card p-6">
+                <div key={game.gameId} className={`card p-6 ${game.status === 'cancelled' ? 'bg-red-50 border-red-200' : ''}`}>
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
                       <div className="flex items-center space-x-3">
-                        <h3 className="text-lg font-medium text-gray-900">
+                        <h3 className={`text-lg font-medium ${game.status === 'cancelled' ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
                           {game.courtName}
                         </h3>
                         <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(game.status)}`}>
@@ -340,11 +336,11 @@ export function Dashboard() {
                           </span>
                         )}
                       </div>
-                      <div className="mt-1 flex items-center space-x-4 text-sm text-gray-500">
+                      <div className={`mt-1 flex items-center space-x-4 text-sm ${game.status === 'cancelled' ? 'text-gray-400' : 'text-gray-500'}`}>
                         <span>📅 {date}</span>
                         <span>🕐 {time}</span>
                         <span>👥 {game.currentPlayers}/{game.maxPlayers} players</span>
-                        <span className="text-blue-600 font-medium">
+                        <span className={`font-medium ${game.status === 'cancelled' ? 'text-gray-400' : 'text-blue-600'}`}>
                           🏆 {formatDUPRRange(game.minDUPR as DUPRLevel, game.maxDUPR as DUPRLevel)}
                         </span>
                       </div>
@@ -352,7 +348,7 @@ export function Dashboard() {
                     <div className="flex space-x-2">
                       {activeTab === 'available' && (
                         <>
-                          {relationship === 'none' && (
+                          {relationship === 'none' && game.status !== 'cancelled' && (
                             <button 
                               onClick={() => handleJoinGame(game.gameId)}
                               className="btn btn-primary text-sm"
@@ -361,6 +357,31 @@ export function Dashboard() {
                               {game.currentPlayers >= game.maxPlayers ? 'Full' : 'Join Game'}
                             </button>
                           )}
+                          {relationship === 'member' && game.status !== 'cancelled' && (
+                            <button 
+                              onClick={() => handleLeaveGame(game.gameId)}
+                              className="btn btn-secondary text-sm"
+                            >
+                              Leave Game
+                            </button>
+                          )}
+                          {relationship === 'owner' && game.status !== 'cancelled' && (
+                            <button 
+                              onClick={() => handleOpenModifyModal(game)}
+                              className="btn btn-primary text-sm"
+                            >
+                              Modify Game
+                            </button>
+                          )}
+                          {game.status === 'cancelled' && (
+                            <span className="text-sm text-gray-500 italic">
+                              Game Cancelled
+                            </span>
+                          )}
+                        </>
+                      )}
+                      {activeTab === 'my-games' && game.status !== 'cancelled' && (
+                        <>
                           {relationship === 'member' && (
                             <button 
                               onClick={() => handleLeaveGame(game.gameId)}
@@ -379,25 +400,10 @@ export function Dashboard() {
                           )}
                         </>
                       )}
-                      {activeTab === 'my-games' && (
-                        <>
-                          {relationship === 'member' && (
-                            <button 
-                              onClick={() => handleLeaveGame(game.gameId)}
-                              className="btn btn-secondary text-sm"
-                            >
-                              Leave Game
-                            </button>
-                          )}
-                          {relationship === 'owner' && (
-                            <button 
-                              onClick={() => handleOpenModifyModal(game)}
-                              className="btn btn-primary text-sm"
-                            >
-                              Modify Game
-                            </button>
-                          )}
-                        </>
+                      {activeTab === 'my-games' && game.status === 'cancelled' && (
+                        <span className="text-sm text-gray-500 italic">
+                          Game Cancelled
+                        </span>
                       )}
                       <button 
                         onClick={() => handleOpenViewDetailsModal(game.gameId)}
