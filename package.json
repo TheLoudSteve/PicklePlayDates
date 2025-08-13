@@ -6,20 +6,40 @@
     "build": "npm run build --workspaces",
     "test": "npm run test --workspaces",
     "lint": "npm run lint --workspaces",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,yaml,yml}\" --ignore-path .gitignore",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,yaml,yml}\" --ignore-path .gitignore",
     "deploy:dev": "cd infra && npm run deploy:dev",
     "deploy:prod": "cd infra && npm run deploy:prod",
-    "bootstrap": "cd infra && npm run bootstrap"
+    "bootstrap": "cd infra && npm run bootstrap",
+    "prepare": "husky install"
   },
   "workspaces": [
     "infra",
-    "web",
-    "services"
+    "web", 
+    "services",
+    "shared-types",
+    "api-client",
+    "integration-tests"
   ],
   "devDependencies": {
     "@types/node": "^20.0.0",
-    "typescript": "^5.3.0"
+    "typescript": "^5.3.0",
+    "prettier": "^3.1.0",
+    "husky": "^8.0.3",
+    "lint-staged": "^15.2.0",
+    "@commitlint/cli": "^18.4.0",
+    "@commitlint/config-conventional": "^18.4.0"
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yaml,yml}": [
+      "prettier --write"
+    ]
   }
 } 

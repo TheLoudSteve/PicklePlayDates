@@ -1,0 +1,31 @@
+{
+  "name": "@pickle-play-dates/shared-types",
+  "version": "1.0.0",
+  "description": "Shared TypeScript types and interfaces for Pickle Play Dates API",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run clean && npm run build"
+  },
+  "keywords": [
+    "typescript",
+    "types",
+    "pickleball",
+    "api"
+  ],
+  "author": "Pickle Play Dates Team",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.3.0"
+  },
+  "files": [
+    "dist/**/*",
+    "src/**/*"
+  ],
+  "publishConfig": {
+    "access": "restricted"
+  }
+}

@@ -1,0 +1,56 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build outputs
+dist/
+build/
+out/
+.next/
+coverage/
+**/dist/
+**/build/
+**/out/
+**/.next/
+**/coverage/
+
+# CDK generated files
+cdk.out/
+**/cdk.out/
+
+# Lambda deployment packages
+*.zip
+services/dist.zip
+
+# AWS generated files
+response.json
+**/response.json
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Runtime files
+*.pid
+*.seed
+*.pid.lock
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Lock files (format may vary)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml

@@ -1,0 +1,936 @@
+openapi: 3.0.3
+info:
+  title: Pickle Play Dates API
+  description: A serverless pickleball game scheduling API built with AWS Lambda and DynamoDB
+  version: 1.0.0
+  contact:
+    name: Pickle Play Dates Support
+    url: https://github.com/your-repo/PicklePlayDates
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.example.com/dev
+    description: Development server
+  - url: https://api.example.com/prod
+    description: Production server
+
+security:
+  - CognitoAuth: []
+
+components:
+  securitySchemes:
+    CognitoAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: AWS Cognito JWT token
+
+  schemas:
+    # Core data models
+    Game:
+      type: object
+      required:
+        - gameId
+        - organizerId
+        - datetimeUTC
+        - courtId
+        - courtName
+        - courtAddress
+        - minPlayers
+        - maxPlayers
+        - currentPlayers
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        gameId:
+          type: string
+          description: Unique game identifier
+        organizerId:
+          type: string
+          description: User ID of the game organizer
+        datetimeUTC:
+          type: string
+          format: date-time
+          description: Game date and time in UTC (ISO-8601)
+        courtId:
+          type: string
+          description: Court identifier
+        courtName:
+          type: string
+          description: Name of the court/facility
+        courtAddress:
+          type: string
+          description: Physical address of the court
+        latitude:
+          type: number
+          format: double
+          description: Court latitude coordinate
+        longitude:
+          type: number
+          format: double
+          description: Court longitude coordinate
+        minPlayers:
+          type: integer
+          minimum: 2
+          maximum: 8
+          description: Minimum number of players required
+        maxPlayers:
+          type: integer
+          minimum: 2
+          maximum: 8
+          description: Maximum number of players allowed
+        currentPlayers:
+          type: integer
+          minimum: 0
+          description: Current number of players joined
+        status:
+          type: string
+          enum: [scheduled, closed, cancelled, past]
+          description: Current game status
+        minDUPR:
+          $ref: '#/components/schemas/DUPRLevel'
+        maxDUPR:
+          $ref: '#/components/schemas/DUPRLevel'
+        createdAt:
+          type: string
+          format: date-time
+          description: Game creation timestamp
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last update timestamp
+
+    GamePlayer:
+      type: object
+      required:
+        - gameId
+        - userId
+        - userName
+        - joinedAt
+      properties:
+        gameId:
+          type: string
+          description: Game identifier
+        userId:
+          type: string
+          description: Player user ID
+        userName:
+          type: string
+          description: Player display name
+        joinedAt:
+          type: string
+          format: date-time
+          description: When the player joined the game
+        dupr:
+          $ref: '#/components/schemas/DUPRLevel'
+
+    UserProfile:
+      type: object
+      required:
+        - userId
+        - email
+        - name
+        - role
+        - createdAt
+        - updatedAt
+      properties:
+        userId:
+          type: string
+          description: Unique user identifier
+        email:
+          type: string
+          format: email
+          description: User email address
+        name:
+          type: string
+          description: User display name
+        phone:
+          type: string
+          pattern: '^\+[1-9]\d{1,14}$'
+          description: Phone number in E.164 format
+        dupr:
+          $ref: '#/components/schemas/DUPRLevel'
+        role:
+          type: string
+          enum: [user, admin]
+          description: User role
+        notificationPreferences:
+          $ref: '#/components/schemas/NotificationPreferences'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    NotificationPreferences:
+      type: object
+      required:
+        - emailEnabled
+        - gameReminders
+        - gameCancellations
+        - preferredMethod
+      properties:
+        emailEnabled:
+          type: boolean
+          description: Whether email notifications are enabled
+        gameReminders:
+          type: boolean
+          description: Receive reminders 24h and 1h before games
+        gameCancellations:
+          type: boolean
+          description: Receive notifications when games are cancelled
+        preferredMethod:
+          type: string
+          enum: [email, in-app]
+          description: Preferred notification delivery method
+
+    Court:
+      type: object
+      required:
+        - courtId
+        - name
+        - address
+        - city
+        - state
+        - zipCode
+        - country
+        - latitude
+        - longitude
+        - courtType
+        - numberOfCourts
+        - isReservable
+        - submittedBy
+        - submittedByName
+        - isApproved
+        - isActive
+        - createdAt
+        - updatedAt
+      properties:
+        courtId:
+          type: string
+          description: Unique court identifier
+        name:
+          type: string
+          description: Court or facility name
+        address:
+          type: string
+          description: Street address
+        city:
+          type: string
+          description: City name
+        state:
+          type: string
+          description: State or province
+        zipCode:
+          type: string
+          description: Postal code
+        country:
+          type: string
+          description: Country name
+        latitude:
+          type: number
+          format: double
+          description: Latitude coordinate
+        longitude:
+          type: number
+          format: double
+          description: Longitude coordinate
+        courtType:
+          type: string
+          enum: [indoor, outdoor, both]
+          description: Type of court facility
+        numberOfCourts:
+          type: integer
+          minimum: 1
+          description: Number of courts at this location
+        isReservable:
+          type: boolean
+          description: Whether courts can be reserved in advance
+        reservationInfo:
+          type: string
+          description: Information about how to make reservations
+        hoursOfOperation:
+          type: string
+          description: Operating hours information
+        amenities:
+          type: array
+          items:
+            type: string
+          description: Available amenities (parking, restrooms, etc.)
+        fees:
+          type: string
+          description: Fee information
+        website:
+          type: string
+          format: uri
+          description: Court website URL
+        phone:
+          type: string
+          description: Contact phone number
+        description:
+          type: string
+          description: Additional court description
+        submittedBy:
+          type: string
+          description: User ID who submitted this court
+        submittedByName:
+          type: string
+          description: Name of user who submitted this court
+        approvedBy:
+          type: string
+          description: Admin user ID who approved this court
+        isApproved:
+          type: boolean
+          description: Whether the court has been approved by an admin
+        isActive:
+          type: boolean
+          description: Whether the court is active (not soft-deleted)
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    DUPRLevel:
+      type: string
+      enum: ['Below 3', '3 to 3.5', '3.5 to 4', '4 to 4.5', 'Above 4.5']
+      description: DUPR skill level rating
+
+    # Request/Response models
+    CreateGameRequest:
+      type: object
+      required:
+        - datetimeUTC
+        - courtId
+      properties:
+        datetimeUTC:
+          type: string
+          format: date-time
+          description: Game date and time in UTC (ISO-8601)
+        courtId:
+          type: string
+          description: Court identifier where the game will be played
+        minPlayers:
+          type: integer
+          minimum: 2
+          maximum: 8
+          default: 4
+          description: Minimum number of players required
+        maxPlayers:
+          type: integer
+          minimum: 2
+          maximum: 8
+          default: 4
+          description: Maximum number of players allowed
+        minDUPR:
+          $ref: '#/components/schemas/DUPRLevel'
+        maxDUPR:
+          $ref: '#/components/schemas/DUPRLevel'
+
+    UpdateUserProfileRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: User display name
+        phone:
+          type: string
+          pattern: '^\+[1-9]\d{1,14}$'
+          description: Phone number in E.164 format
+        dupr:
+          $ref: '#/components/schemas/DUPRLevel'
+        notificationPreferences:
+          $ref: '#/components/schemas/NotificationPreferences'
+
+    CreateCourtRequest:
+      type: object
+      required:
+        - name
+        - address
+        - city
+        - state
+        - zipCode
+        - country
+        - courtType
+        - numberOfCourts
+        - isReservable
+      properties:
+        name:
+          type: string
+          description: Court or facility name
+        address:
+          type: string
+          description: Street address
+        city:
+          type: string
+          description: City name
+        state:
+          type: string
+          description: State or province
+        zipCode:
+          type: string
+          description: Postal code
+        country:
+          type: string
+          description: Country name
+        courtType:
+          type: string
+          enum: [indoor, outdoor, both]
+          description: Type of court facility
+        numberOfCourts:
+          type: integer
+          minimum: 1
+          description: Number of courts at this location
+        isReservable:
+          type: boolean
+          description: Whether courts can be reserved in advance
+        reservationInfo:
+          type: string
+          description: Information about how to make reservations
+        hoursOfOperation:
+          type: string
+          description: Operating hours information
+        amenities:
+          type: array
+          items:
+            type: string
+          description: Available amenities
+        fees:
+          type: string
+          description: Fee information
+        website:
+          type: string
+          format: uri
+          description: Court website URL
+        phone:
+          type: string
+          description: Contact phone number
+        description:
+          type: string
+          description: Additional court description
+
+    # Response wrappers
+    APIResponse:
+      type: object
+      required:
+        - success
+        - message
+      properties:
+        success:
+          type: boolean
+          description: Whether the request was successful
+        data:
+          description: Response data (present on success)
+        message:
+          type: string
+          description: Human-readable message
+        error:
+          description: Error details (present on failure)
+
+    ValidationError:
+      type: object
+      required:
+        - field
+        - message
+      properties:
+        field:
+          type: string
+          description: Field that failed validation
+        message:
+          type: string
+          description: Validation error message
+
+    ErrorResponse:
+      allOf:
+        - $ref: '#/components/schemas/APIResponse'
+        - type: object
+          properties:
+            success:
+              type: boolean
+              enum: [false]
+            error:
+              type: object
+              properties:
+                validationErrors:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/ValidationError'
+
+paths:
+  # Game endpoints
+  /games:
+    post:
+      summary: Create a new game
+      description: Create a new pickleball game at a specified court and time
+      tags: [Games]
+      security:
+        - CognitoAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateGameRequest'
+      responses:
+        '201':
+          description: Game created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/APIResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Game'
+        '400':
+          description: Bad request - validation errors
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - missing or invalid token
+        '404':
+          description: User profile not found
+        '422':
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    get:
+      summary: Get available games
+      description: Retrieve all available games that can be joined
+      tags: [Games]
+      security:
+        - CognitoAuth: []
+      responses:
+        '200':
+          description: List of available games
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/APIResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Game'
+        '401':
+          description: Unauthorized
+
+  /games/{gameId}:
+    get:
+      summary: Get game details
+      description: Retrieve detailed information about a specific game
+      tags: [Games]
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique game identifier
+      responses:
+        '200':
+          description: Game details
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/APIResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Game'
+        '404':
+          description: Game not found
+
+    put:
+      summary: Update game details
+      description: Update game information (organizer or admin only)
+      tags: [Games]
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique game identifier
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateGameRequest'
+      responses:
+        '200':
+          description: Game updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/APIResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Game'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - not organizer or admin
+        '404':
+          description: Game not found
+
+    delete:
+      summary: Cancel a game
+      description: Cancel a game (organizer or admin only)
+      tags: [Games]
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique game identifier
+      responses:
+        '200':
+          description: Game cancelled successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - not organizer or admin
+        '404':
+          description: Game not found
+
+  /games/{gameId}/join:
+    post:
+      summary: Join a game
+      description: Join an available game as a player
+      tags: [Games]
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique game identifier
+      responses:
+        '200':
+          description: Successfully joined the game
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIResponse'
+        '400':
+          description: Cannot join game (full, too late, already joined, etc.)
+        '401':
+          description: Unauthorized
+        '404':
+          description: Game not found
+
+  /games/{gameId}/leave:
+    post:
+      summary: Leave a game
+      description: Leave a game you have previously joined
+      tags: [Games]
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique game identifier
+      responses:
+        '200':
+          description: Successfully left the game
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIResponse'
+        '400':
+          description: Cannot leave game (too late, not joined, etc.)
+        '401':
+          description: Unauthorized
+        '404':
+          description: Game not found
+
+  /games/{gameId}/players/{userId}:
+    delete:
+      summary: Kick a player from a game
+      description: Remove a player from a game (organizer or admin only)
+      tags: [Games]
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique game identifier
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: User ID of player to kick
+      responses:
+        '200':
+          description: Player kicked successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - not organizer or admin
+        '404':
+          description: Game or player not found
+
+  # User endpoints
+  /users/me:
+    put:
+      summary: Update user profile
+      description: Update the current user's profile information
+      tags: [Users]
+      security:
+        - CognitoAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserProfileRequest'
+      responses:
+        '200':
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/APIResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/UserProfile'
+        '400':
+          description: Bad request - validation errors
+        '401':
+          description: Unauthorized
+
+  /users/me/profile:
+    get:
+      summary: Get user profile
+      description: Retrieve the current user's profile information
+      tags: [Users]
+      security:
+        - CognitoAuth: []
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/APIResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/UserProfile'
+        '401':
+          description: Unauthorized
+        '404':
+          description: User profile not found
+
+  /users/me/schedule:
+    get:
+      summary: Get user's game schedule
+      description: Retrieve games the user has joined, filtered by time range
+      tags: [Users]
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: range
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [upcoming, past]
+          description: Time range filter for games
+      responses:
+        '200':
+          description: User's game schedule
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/APIResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Game'
+        '401':
+          description: Unauthorized
+
+  # Court endpoints
+  /courts:
+    post:
+      summary: Submit a new court
+      description: Submit a new court for approval by administrators
+      tags: [Courts]
+      security:
+        - CognitoAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCourtRequest'
+      responses:
+        '201':
+          description: Court submitted successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/APIResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Court'
+        '400':
+          description: Bad request - validation errors
+        '401':
+          description: Unauthorized
+
+    get:
+      summary: Search courts
+      description: Search for courts by location and other criteria
+      tags: [Courts]
+      parameters:
+        - name: city
+          in: query
+          schema:
+            type: string
+          description: Filter by city name
+        - name: state
+          in: query
+          schema:
+            type: string
+          description: Filter by state
+        - name: courtType
+          in: query
+          schema:
+            type: string
+            enum: [indoor, outdoor, both]
+          description: Filter by court type
+        - name: approved
+          in: query
+          schema:
+            type: boolean
+            default: true
+          description: Only return approved courts
+      responses:
+        '200':
+          description: List of courts matching search criteria
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/APIResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Court'
+
+  # Admin endpoints
+  /admin/courts:
+    get:
+      summary: Get all courts for management
+      description: Retrieve all courts including pending approval (admin only)
+      tags: [Admin]
+      security:
+        - CognitoAuth: []
+      responses:
+        '200':
+          description: List of all courts
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/APIResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Court'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - admin access required
+
+  /admin/courts/{courtId}/approve:
+    post:
+      summary: Approve a court
+      description: Approve a submitted court (admin only)
+      tags: [Admin]
+      security:
+        - CognitoAuth: []
+      parameters:
+        - name: courtId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Court identifier
+      responses:
+        '200':
+          description: Court approved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - admin access required
+        '404':
+          description: Court not found
+
+tags:
+  - name: Games
+    description: Game management operations
+  - name: Users
+    description: User profile and schedule operations
+  - name: Courts
+    description: Court management operations
+  - name: Admin
+    description: Administrative operations
