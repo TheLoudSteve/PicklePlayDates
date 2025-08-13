@@ -5,6 +5,7 @@ import { apiClient, Game, Player } from '@/lib/api'
 import { formatDUPRRange, formatDUPRLevel, getDUPRColor, type DUPRLevel } from '@/lib/dupr'
 import { formatDateTimeDetailed } from '@/lib/datetime'
 import { PlayerProfileModal } from './PlayerProfileModal'
+import AddToCalendarButton from './AddToCalendarButton'
 
 interface ViewGameDetailsModalProps {
   isOpen: boolean
@@ -125,6 +126,21 @@ export function ViewGameDetailsModal({ isOpen, onClose, gameId }: ViewGameDetail
                       {formatDUPRRange(game.minDUPR as DUPRLevel, game.maxDUPR as DUPRLevel)}
                     </div>
                   </div>
+                </div>
+                
+                {/* Calendar Integration */}
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <AddToCalendarButton 
+                    game={game}
+                    court={{
+                      courtId: game.courtId || '',
+                      name: game.courtName || 'TBD',
+                      address: game.courtAddress || ''
+                    }}
+                    variant="dropdown"
+                    size="md"
+                    className="float-right"
+                  />
                 </div>
               </div>
 

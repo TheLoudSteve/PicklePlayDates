@@ -8,6 +8,7 @@ import { formatDateTime as formatDateTimeUtil } from '@/lib/datetime'
 import { CreateGameModal } from './CreateGameModal'
 import { ModifyGameModal } from './ModifyGameModal'
 import { ViewGameDetailsModal } from './ViewGameDetailsModal'
+import AddToCalendarButton from './AddToCalendarButton'
 import { UserProfileModal } from './UserProfileModal'
 import CreateCourtModal from './CreateCourtModal'
 import { AdminCourtManagement } from './AdminCourtManagement'
@@ -398,6 +399,16 @@ export function Dashboard() {
                               Modify Game
                             </button>
                           )}
+                          <AddToCalendarButton 
+                            game={game}
+                            court={{
+                              courtId: game.courtId || '',
+                              name: game.courtName || 'TBD',
+                              address: game.courtAddress || ''
+                            }}
+                            variant="button"
+                            size="sm"
+                          />
                         </>
                       )}
                       {activeTab === 'my-games' && game.status === 'cancelled' && (
