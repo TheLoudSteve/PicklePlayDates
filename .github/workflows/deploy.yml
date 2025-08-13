@@ -2,12 +2,16 @@ name: Deploy Pickle Play Dates
 
 on:
   push:
-    branches: [main]
+    branches: 
+      - develop    # Auto-deploy to dev environment
+      - main       # Auto-deploy to production environment
   pull_request:
-    branches: [main]
+    branches:
+      - main       # Run tests on PRs to main
 
 env:
-  NODE_VERSION: '18'
+  NODE_VERSION: '20'
+  AWS_REGION: 'us-west-2'
 
 jobs:
   test:
@@ -39,9 +43,10 @@ jobs:
           npm run build
 
   deploy-dev:
+    name: Deploy to Development
     needs: test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
     environment: development
     steps:
       - name: Checkout code
@@ -61,7 +66,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Build Lambda functions
         run: |
@@ -76,19 +81,28 @@ jobs:
       - name: Build and deploy frontend
         run: |
           cd web
-          # Set environment variables from CDK outputs
-          export NEXT_PUBLIC_API_URL="${{ secrets.API_URL }}"
-          export NEXT_PUBLIC_USER_POOL_ID="${{ secrets.USER_POOL_ID }}"
-          export NEXT_PUBLIC_USER_POOL_CLIENT_ID="${{ secrets.USER_POOL_CLIENT_ID }}"
-          export NEXT_PUBLIC_USER_POOL_DOMAIN="${{ secrets.USER_POOL_DOMAIN }}"
+          npm ci
           npm run build
-          # Upload to S3 bucket (would need to extract bucket name from CDK outputs)
-          aws s3 sync out/ s3://${{ secrets.S3_BUCKET_NAME }} --delete
+          aws s3 sync out/ s3://pickle-play-dates-web-dev-916259710192 --delete
+
+      - name: Run integration tests
+        run: |
+          cd integration-tests
+          npm ci
+          npm test
+        continue-on-error: true
+
+      - name: Post deployment notification
+        run: |
+          echo "✅ Development deployment complete"
+          echo "🌐 Web App: https://dodcyw1qbl5cy.cloudfront.net"
+          echo "🔗 API: https://9vduzksk81.execute-api.us-west-2.amazonaws.com/dev"
 
   deploy-prod:
+    name: Deploy to Production
     needs: test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[deploy:prod]')
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment: production
     steps:
       - name: Checkout code
