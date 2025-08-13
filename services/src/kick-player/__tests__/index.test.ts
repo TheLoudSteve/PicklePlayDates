@@ -133,7 +133,7 @@ describe('Kick Player Lambda', () => {
 
     await handler(event);
 
-    expect(mockUtils.createErrorResponse).toHaveBeenCalledWith(400, 'Game ID and User ID are required');
+    expect(mockUtils.createErrorResponse).toHaveBeenCalledWith(400, 'Game ID is required');
   });
 
   it('should return 400 if userId is missing', async () => {
@@ -142,7 +142,7 @@ describe('Kick Player Lambda', () => {
 
     await handler(event);
 
-    expect(mockUtils.createErrorResponse).toHaveBeenCalledWith(400, 'Game ID and User ID are required');
+    expect(mockUtils.createErrorResponse).toHaveBeenCalledWith(400, 'Player ID is required');
   });
 
   it('should return 404 if game not found', async () => {

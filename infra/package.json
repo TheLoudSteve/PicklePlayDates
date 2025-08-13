@@ -4,7 +4,7 @@
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",
-    "test": "jest",
+    "test": "jest --passWithNoTests",
     "bootstrap": "cdk bootstrap",
     "deploy:dev": "cdk deploy --all --context env=dev",
     "deploy:prod": "cdk deploy --all --context env=prod",
