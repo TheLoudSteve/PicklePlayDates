@@ -30,7 +30,10 @@ jobs:
         run: npm ci
 
       - name: Run tests
-        run: npm test
+        run: |
+          npm run test --workspace=web
+          npm run test --workspace=infra  
+          npm run test --workspace=api-client
 
       - name: Build services
         run: |
