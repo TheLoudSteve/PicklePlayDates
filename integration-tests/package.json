@@ -13,8 +13,8 @@
     "teardown": "ts-node scripts/teardown.ts"
   },
   "dependencies": {
-    "@pickle-play-dates/api-client": "workspace:*",
-    "@pickle-play-dates/shared-types": "workspace:*"
+    "@pickle-play-dates/api-client": "file:../api-client",
+    "@pickle-play-dates/shared-types": "file:../shared-types"
   },
   "devDependencies": {
     "@types/jest": "^29.5.0",

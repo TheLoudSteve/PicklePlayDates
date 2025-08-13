@@ -121,7 +121,7 @@ export async function geocodeAddress(address: string, city: string, state: strin
     
     const data = await response.json();
     
-    if (!data || data.length === 0) {
+    if (!data || !Array.isArray(data) || data.length === 0) {
       throw new Error('Address not found. Please check the address and try again.');
     }
     

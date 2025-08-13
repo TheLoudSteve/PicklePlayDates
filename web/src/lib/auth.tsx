@@ -6,27 +6,42 @@ import { getCurrentUser, signIn, signOut, signInWithRedirect, AuthUser } from 'a
 import { apiClient } from './api'
 
 // Configure Amplify
-Amplify.configure({
+const userPoolId = process.env.NEXT_PUBLIC_USER_POOL_ID
+const userPoolClientId = process.env.NEXT_PUBLIC_USER_POOL_CLIENT_ID
+const userPoolDomain = process.env.NEXT_PUBLIC_USER_POOL_DOMAIN
+const enableGoogleSignIn = process.env.NEXT_PUBLIC_ENABLE_GOOGLE_SIGNIN === 'true'
+
+if (!userPoolId || !userPoolClientId) {
+  console.error('Missing required Cognito configuration')
+}
+
+const amplifyConfig: any = {
   Auth: {
     Cognito: {
-      userPoolId: process.env.NEXT_PUBLIC_USER_POOL_ID!,
-      userPoolClientId: process.env.NEXT_PUBLIC_USER_POOL_CLIENT_ID!,
-      loginWith: {
-        oauth: {
-          domain: process.env.NEXT_PUBLIC_USER_POOL_DOMAIN!,
-          scopes: ['email', 'openid', 'profile'],
-          redirectSignIn: [
-            typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'
-          ],
-          redirectSignOut: [
-            typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'
-          ],
-          responseType: 'code'
-        }
-      }
+      userPoolId: userPoolId || 'us-west-2_nxJAslgC2',
+      userPoolClientId: userPoolClientId || '6lt836eebjv7di96jsnspl2p5g',
     }
   }
-})
+}
+
+// Only add OAuth configuration if Google Sign-In is enabled and domain is configured
+if (enableGoogleSignIn && userPoolDomain) {
+  amplifyConfig.Auth.Cognito.loginWith = {
+    oauth: {
+      domain: userPoolDomain,
+      scopes: ['email', 'openid', 'profile'],
+      redirectSignIn: [
+        typeof window !== 'undefined' ? window.location.origin : 'https://dodcyw1qbl5cy.cloudfront.net'
+      ],
+      redirectSignOut: [
+        typeof window !== 'undefined' ? window.location.origin : 'https://dodcyw1qbl5cy.cloudfront.net'
+      ],
+      responseType: 'code'
+    }
+  }
+}
+
+Amplify.configure(amplifyConfig)
 
 interface AuthContextType {
   user: AuthUser | null

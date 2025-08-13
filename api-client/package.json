@@ -21,7 +21,7 @@
   "author": "Pickle Play Dates Team",
   "license": "MIT",
   "dependencies": {
-    "@pickle-play-dates/shared-types": "workspace:*"
+    "@pickle-play-dates/shared-types": "file:../shared-types"
   },
   "devDependencies": {
     "@types/jest": "^29.5.0",

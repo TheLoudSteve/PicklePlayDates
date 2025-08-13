@@ -130,8 +130,33 @@ export class PicklePlayDatesStack extends cdk.Stack {
       description: 'Administrative users',
     });
 
-    // User Pool Client
-    const userPoolClient = new cognito.UserPoolClient(this, 'UserPoolClient', {
+    // Google Identity Provider (create first so it can be referenced by UserPoolClient)
+    const googleClientId = process.env.GOOGLE_CLIENT_ID;
+    const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    
+    let googleProvider;
+    const supportedProviders = [cognito.UserPoolClientIdentityProvider.COGNITO];
+    
+    if (googleClientId && googleClientSecret) {
+      googleProvider = new cognito.UserPoolIdentityProviderGoogle(this, 'GoogleProvider', {
+        userPool,
+        clientId: googleClientId,
+        clientSecret: googleClientSecret,
+        scopes: ['email', 'profile'],
+        attributeMapping: {
+          email: cognito.ProviderAttribute.GOOGLE_EMAIL,
+          givenName: cognito.ProviderAttribute.GOOGLE_GIVEN_NAME,
+          familyName: cognito.ProviderAttribute.GOOGLE_FAMILY_NAME,
+        },
+      });
+      supportedProviders.push(cognito.UserPoolClientIdentityProvider.GOOGLE);
+      console.log('✅ Google OAuth provider configured successfully');
+    } else {
+      console.log('🔐 Google OAuth credentials not found in environment variables. Skipping Google provider.');
+    }
+
+    // User Pool Client (created after identity providers)
+    const userPoolClient = new cognito.UserPoolClient(this, 'UserPoolClientV2', {
       userPool,
       userPoolClientName: `pickle-play-dates-client-${environment}`,
       generateSecret: false,
@@ -153,11 +178,13 @@ export class PicklePlayDatesStack extends cdk.Stack {
           'http://localhost:3000',
         ],
       },
-      supportedIdentityProviders: [
-        cognito.UserPoolClientIdentityProvider.COGNITO,
-        cognito.UserPoolClientIdentityProvider.GOOGLE,
-      ],
+      supportedIdentityProviders: supportedProviders,
     });
+
+    // Add dependency to ensure Google provider is created before the client references it
+    if (googleProvider) {
+      userPoolClient.node.addDependency(googleProvider);
+    }
 
     // Cognito Domain
     const userPoolDomain = new cognito.UserPoolDomain(this, 'UserPoolDomain', {
@@ -166,26 +193,6 @@ export class PicklePlayDatesStack extends cdk.Stack {
         domainPrefix: `pickle-play-dates-${environment}-${this.account}`,
       },
     });
-
-    // Google Identity Provider (only created if environment variables are provided)
-    const googleClientId = process.env.GOOGLE_CLIENT_ID;
-    const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    
-    if (googleClientId && googleClientSecret) {
-      new cognito.UserPoolIdentityProviderGoogle(this, 'GoogleProvider', {
-        userPool,
-        clientId: googleClientId,
-        clientSecret: googleClientSecret,
-        scopes: ['email', 'profile'],
-        attributeMapping: {
-          email: cognito.ProviderAttribute.GOOGLE_EMAIL,
-          givenName: cognito.ProviderAttribute.GOOGLE_GIVEN_NAME,
-          familyName: cognito.ProviderAttribute.GOOGLE_FAMILY_NAME,
-        },
-      });
-    } else {
-      console.log('🔐 Google OAuth credentials not found in environment variables. Skipping Google provider.');
-    }
 
     // Apple Identity Provider - Temporarily removed
     // To add Apple Sign-In later:

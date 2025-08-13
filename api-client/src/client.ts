@@ -164,10 +164,11 @@ export class PicklePlayDatesAPI {
           }
 
           // Check if this status code should trigger a retry
+          const retryableStatusCodes = retryConfig?.retryableStatusCodes || [408, 429, 500, 502, 503, 504];
           if (
             shouldRetry && 
             attempt < maxAttempts && 
-            retryConfig!.retryableStatusCodes.includes(response.status)
+            retryableStatusCodes.includes(response.status)
           ) {
             const delay = Math.min(
               retryConfig!.baseDelay * Math.pow(2, attempt - 1),
@@ -204,7 +205,7 @@ export class PicklePlayDatesAPI {
         return {
           status: response.status,
           statusText: response.statusText,
-          headers: Object.fromEntries(response.headers.entries()),
+          headers: Object.fromEntries(Array.from(response.headers.entries())),
           data,
         };
 
@@ -270,7 +271,7 @@ export class PicklePlayDatesAPI {
       'GET',
       '/games',
       undefined,
-      { ...config, params: query }
+      { ...config, params: query as Record<string, string | number | boolean | undefined> }
     );
     return response.data;
   }
@@ -418,7 +419,7 @@ export class PicklePlayDatesAPI {
       'GET',
       '/courts',
       undefined,
-      { ...config, params: query }
+      { ...config, params: query as Record<string, string | number | boolean | undefined> }
     );
     return response.data;
   }
