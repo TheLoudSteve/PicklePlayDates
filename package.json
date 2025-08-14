@@ -11,7 +11,7 @@
     "deploy:dev": "cd infra && npm run deploy:dev",
     "deploy:prod": "cd infra && npm run deploy:prod",
     "bootstrap": "cd infra && npm run bootstrap",
-    "prepare": "husky install"
+    "prepare": "if [ -z \"$CI\" ]; then husky install; fi"
   },
   "workspaces": [
     "infra",
