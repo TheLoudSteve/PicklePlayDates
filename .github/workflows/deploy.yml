@@ -90,6 +90,8 @@ jobs:
           npm ci
           npm run build
           aws s3 sync out/ s3://pickle-play-dates-web-dev-916259710192 --delete
+        env:
+          NEXT_PUBLIC_ENABLE_GOOGLE_SIGNIN: true
 
       - name: Run integration tests
         run: |
@@ -151,6 +153,7 @@ jobs:
           export NEXT_PUBLIC_USER_POOL_ID="${{ secrets.USER_POOL_ID_PROD }}"
           export NEXT_PUBLIC_USER_POOL_CLIENT_ID="${{ secrets.USER_POOL_CLIENT_ID_PROD }}"
           export NEXT_PUBLIC_USER_POOL_DOMAIN="${{ secrets.USER_POOL_DOMAIN_PROD }}"
+          export NEXT_PUBLIC_ENABLE_GOOGLE_SIGNIN=true
           npm run build
           # Upload to S3 bucket (would need to extract bucket name from CDK outputs)
           aws s3 sync out/ s3://${{ secrets.S3_BUCKET_NAME_PROD }} --delete 
