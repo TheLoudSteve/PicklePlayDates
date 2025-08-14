@@ -80,6 +80,9 @@ jobs:
         run: |
           cd infra
           npm run deploy:dev
+        env:
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID_DEV }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET_DEV }}
 
       - name: Build and deploy frontend
         run: |
@@ -136,6 +139,9 @@ jobs:
         run: |
           cd infra
           npm run deploy:prod
+        env:
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID_PROD }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET_PROD }}
 
       - name: Build and deploy frontend
         run: |
