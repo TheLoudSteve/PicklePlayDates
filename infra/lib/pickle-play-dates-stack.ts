@@ -131,8 +131,10 @@ export class PicklePlayDatesStack extends cdk.Stack {
     });
 
     // Google Identity Provider (create first so it can be referenced by UserPoolClient)
-    const googleClientId = process.env.GOOGLE_CLIENT_ID;
-    const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    const googleClientId = process.env.GOOGLE_CLIENT_ID || 
+                          (environment === 'dev' ? process.env.GOOGLE_CLIENT_ID_DEV : process.env.GOOGLE_CLIENT_ID_PROD);
+    const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET || 
+                              (environment === 'dev' ? process.env.GOOGLE_CLIENT_SECRET_DEV : process.env.GOOGLE_CLIENT_SECRET_PROD);
     
     let googleProvider;
     const supportedProviders = [cognito.UserPoolClientIdentityProvider.COGNITO];
