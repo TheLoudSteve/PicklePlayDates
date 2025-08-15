@@ -92,6 +92,7 @@ jobs:
           aws s3 sync out/ s3://pickle-play-dates-web-dev-916259710192 --delete
         env:
           NEXT_PUBLIC_ENABLE_GOOGLE_SIGNIN: "true"
+          NEXT_PUBLIC_USER_POOL_CLIENT_ID: ${{ secrets.USER_POOL_CLIENT_ID_DEV }}
 
       - name: Run integration tests
         run: |
